@@ -130,9 +130,13 @@ def read_text(file: Path) -> str:
 def hypodd_summary(directory: Path) -> dict[str, Any]:
     """Summary of a hypoDD run from its log and outputs."""
     log = read_text(directory / "hypoDD.log")
+    # the iteration table has the columns CC, RMSCC and its change with dt.cc
+    cc_columns = r"(\d+)\s+" if "dt.cc" in log else ""
+    cc_rms = r"\s+(\d+)\s+(-?[\d.]+)" if cc_columns else ""
     iterations = re.findall(
-        r"^\s*(\d+)\s+(?:\d+\s+)?(\d+)\s+(\d+)\s+(\d+)\s+(-?[\d.]+)\s+(\d+)"
-        r"\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$",
+        rf"^\s*(\d+)\s+(?:\d+\s+)?(\d+)\s+(\d+)\s+{cc_columns}(\d+)\s+(-?[\d.]+)"
+        rf"{cc_rms}\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)"
+        r"\s+(\d+)\s*$",
         log,
         re.MULTILINE,
     )
@@ -158,8 +162,10 @@ def hypodd_summary(directory: Path) -> dict[str, Any]:
             "it",
             "ev",
             "ct",
+            *(["cc"] if cc_columns else []),
             "rmsct",
             "rmsct_change",
+            *(["rmscc", "rmscc_change"] if cc_columns else []),
             "rmsst",
             "dx",
             "dy",
@@ -181,6 +187,9 @@ def hypodd_summary(directory: Path) -> dict[str, Any]:
             "shift_t_ms": int(last["dt"]),
             "centroid_shift_m": int(last["os"]),
         }
+        if cc_columns:
+            summary["final"]["cc_data_percent"] = int(last["cc"])
+            summary["final"]["cc_rms_ms"] = int(last["rmscc"])
         cnds = [int(row[-1]) for row in iterations]
         summary["cnd_median"] = median(cnds)
     return summary
@@ -319,9 +328,12 @@ def relocate(args: argparse.Namespace) -> int:
     # the settings of the export, complete, so that --set reaches into lists
     from qseek.exporters.hypodd import HypoDD
 
-    exporter = HypoDD()
+    settings: dict[str, Any] = {}
     if args.config:
-        exporter = HypoDD.model_validate_json(Path(args.config).read_text())
+        settings = json.loads(Path(args.config).read_text())
+    if args.cc and not settings.get("cross_correlation"):
+        settings["cross_correlation"] = {}
+    exporter = HypoDD.model_validate(settings)
     config: dict[str, Any] = exporter.model_dump(mode="json")
     for text in args.set:
         apply_override(config, *parse_override(text))
@@ -424,14 +436,17 @@ def evaluate(
     """Double-difference residuals of a location set, calculated by hypoDD.
 
     hypoDD runs one iteration with a damping so high that the locations stay in
-    place, on the catalog differential times `dt.ct` of the HypoDD run. The travel
+    place, on the differential times of the HypoDD run: the catalog times `dt.ct`
+    and, if the run has them, the cross-correlation times `dt.cc`. The travel
     times of each event are shifted to the origin time of the location set, so the
     origin times count as well. All data are used, without reweighting.
     """
     if workdir.exists():
         shutil.rmtree(workdir)
     workdir.mkdir(parents=True)
-    shutil.copy(directory / "station.sel", workdir / "station.sel")
+    for station_file in ("station.sel", "station.dat"):
+        if (directory / station_file).exists():
+            shutil.copy(directory / station_file, workdir / station_file)
 
     delays = {
         event_id: (ev.time - exported[event_id].hypodd_time).total_seconds()
@@ -462,6 +477,20 @@ def evaluate(
                     f" {weight} {phase}\n"
                 )
 
+    if (directory / "dt.cc").exists():
+        with (directory / "dt.cc").open() as fin, (workdir / "dt.cc").open("w") as fout:
+            keep = False
+            for line in fin:
+                if line.startswith("#"):
+                    _, id1, id2, _otc = line.split()
+                    keep = int(id1) in delays and int(id2) in delays
+                    if keep:
+                        shift = delays[int(id1)] - delays[int(id2)]
+                        fout.write(line)
+                elif keep:
+                    sta, dt, weight, phase = line.split()
+                    fout.write(f"{sta} {float(dt) - shift:.6f} {weight} {phase}\n")
+
     # one iteration of one weighting set, catalog start, keep air-quakes, no clustering
     control = (directory / "hypoDD.inp").read_text().splitlines()
     out: list[str] = []
@@ -480,7 +509,7 @@ def evaluate(
             state = "head"
         elif state == "solution":
             out.append("2 2 0 1")
-            out.append(f"1 -999 -999 -999 -999 1 0.5 -999 -999 {EVALUATION_DAMPING:g}")
+            out.append(f"1 1 0.5 -999 -999 1 0.5 -999 -999 {EVALUATION_DAMPING:g}")
             state = "sets"
         elif state == "sets" and len(values) == 10:
             continue
@@ -490,14 +519,15 @@ def evaluate(
     (workdir / "hypoDD.inp").write_text("\n".join(out) + "\n")
     run_binary("hypoDD", "hypoDD.inp", workdir)
 
-    residuals: dict[str, list[float]] = {"P": [], "S": []}
+    # IDX of hypoDD.res: 1 cc P, 2 cc S, 3 catalog P, 4 catalog S
+    data_types = {"1": "cc_P", "2": "cc_S", "3": "P", "4": "S"}
+    residuals: dict[str, list[float]] = {key: [] for key in data_types.values()}
     with (workdir / "hypoDD.res").open() as f:
         for line in f:
             values = line.split()
             if len(values) < 9 or values[0] == "STA":
                 continue
-            phase = "P" if values[4] == "3" else "S"
-            residuals[phase].append(float(values[6]))
+            residuals[data_types[values[4]]].append(float(values[6]))
 
     def stats(values: list[float]) -> dict[str, Any]:
         abs_values = [abs(v) for v in values]
@@ -510,11 +540,16 @@ def evaluate(
             "abs_p90_ms": rounded(percentile(abs_values, 90.0), 1),
         }
 
-    return {
+    result = {
         "all": stats(residuals["P"] + residuals["S"]),
         "P": stats(residuals["P"]),
         "S": stats(residuals["S"]),
     }
+    if residuals["cc_P"] or residuals["cc_S"]:
+        result["cc"] = stats(residuals["cc_P"] + residuals["cc_S"])
+        result["cc_P"] = stats(residuals["cc_P"])
+        result["cc_S"] = stats(residuals["cc_S"])
+    return result
 
 
 def location_metrics(
@@ -636,6 +671,11 @@ def compare(args: argparse.Namespace) -> int:
         "dd_residuals.all.abs_p90_ms",
         "dd_residuals.P.abs_median_ms",
         "dd_residuals.S.abs_median_ms",
+        "dd_residuals.cc.n",
+        "dd_residuals.cc.abs_median_ms",
+        "dd_residuals.cc.abs_p90_ms",
+        "dd_residuals.cc_P.abs_median_ms",
+        "dd_residuals.cc_S.abs_median_ms",
         "nn_distance_median_m",
         "nn_distance_horizontal_median_m",
         "depth_median_m",
@@ -679,6 +719,11 @@ def main() -> int:
         default=[],
         metavar="KEY.PATH=VALUE",
         help="override a setting of the export, e.g. ph2dt.max_separation=3000",
+    )
+    sub.add_argument(
+        "--cc",
+        action="store_true",
+        help="cross-correlate the waveforms for dt.cc, with the default settings",
     )
     sub.add_argument("--force", action="store_true", help="replace the run")
 

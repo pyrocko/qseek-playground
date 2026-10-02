@@ -1727,6 +1727,12 @@ const HYPODD_ROWS = [
   { key: "dd_residuals.S.abs_median_ms", label: "S", unit: "ms", lower: true },
   { key: "dd_residuals.all.abs_p90_ms", label: "all data, p90 |res|", unit: "ms", lower: true },
   { key: "dd_residuals.all.rms_ms", label: "all data, RMS", unit: "ms", lower: true },
+  { group: "Cross-correlation double-difference residual, median |res|", cc: true },
+  { key: "dd_residuals.cc.abs_median_ms", label: "all data", unit: "ms", lower: true },
+  { key: "dd_residuals.cc_P.abs_median_ms", label: "P", unit: "ms", lower: true },
+  { key: "dd_residuals.cc_S.abs_median_ms", label: "S", unit: "ms", lower: true },
+  { key: "dd_residuals.cc.abs_p90_ms", label: "all data, p90 |res|", unit: "ms", lower: true },
+  { key: "dd_residuals.cc.n", label: "differential times" },
   { group: "Locations" },
   { key: "nn_distance_median_m", label: "nearest neighbor, median", unit: "m", lower: true },
   { key: "nn_distance_horizontal_median_m", label: "nearest neighbor horiz., median", unit: "m", lower: true },
@@ -1749,6 +1755,11 @@ const HYPODD_CHARTS = [
     { key: "dd_residuals.all.abs_median_ms", label: "all" },
     { key: "dd_residuals.P.abs_median_ms", label: "P" },
     { key: "dd_residuals.S.abs_median_ms", label: "S" },
+  ] },
+  { title: "Cross-correlation double-difference residual, median |res|", unit: "ms", cc: true, bars: [
+    { key: "dd_residuals.cc.abs_median_ms", label: "all" },
+    { key: "dd_residuals.cc_P.abs_median_ms", label: "P" },
+    { key: "dd_residuals.cc_S.abs_median_ms", label: "S" },
   ] },
   { title: "Nearest neighbor, median", unit: "m", bars: [
     { key: "nn_distance_median_m", label: "3D" },
@@ -1806,6 +1817,7 @@ function renderHypodd() {
     chip("clusters", fmt(sm.n_clusters, "n_")),
     chip("CND, median", fmt(sm.cnd_median, "n_")),
     chip("final ct RMS", isNum(fin.ct_rms_ms) ? `${fin.ct_rms_ms} ms` : "–"),
+    ...(isNum(fin.cc_rms_ms) ? [chip("final cc RMS", `${fin.cc_rms_ms} ms`)] : []),
     chip("centroid shift", isNum(fin.centroid_shift_m) ? `${fin.centroid_shift_m} m` : "–"));
 
   const cmp = entry.comparison;
@@ -1818,9 +1830,13 @@ function renderHypodd() {
     return;
   }
   const runs = cmp.runs;
-  $("hypodd-sub").textContent = `${cmp.n_common_events} events common to ${runs.join(", ")}. hypoDD evaluates the double-difference residuals of each run's locations on the catalog differential times of ${cmp.hypodd_run}, without moving them. HypoDD minimizes this measure, so it favors the HypoDD locations; compare the Qseek runs with each other on it.`;
+  // cross-correlation residuals exist if the HypoDD run has dt.cc
+  const hasCC = runs.some((r) => isNum(get(cmp.results[r], "dd_residuals.cc.abs_median_ms")));
+  const data = hasCC ? "catalog and cross-correlation differential times" : "catalog differential times";
+  $("hypodd-sub").textContent = `${cmp.n_common_events} events common to ${runs.join(", ")}. hypoDD evaluates the double-difference residuals of each run's locations on the ${data} of ${cmp.hypodd_run}, without moving them. HypoDD minimizes this measure, so it favors the HypoDD locations; compare the Qseek runs with each other on it.${hasCC ? " The cross-correlation residuals do not depend on the picks: HypoDD runs without dt.cc did not fit them." : ""}`;
   legend.append(...runs.map((r) => el("span", {}, el("span", { class: "key sq", style: `background:${runColor(r, cmp)}` }), r)));
   for (const spec of HYPODD_CHARTS) {
+    if (spec.cc && !hasCC) continue;
     const wrap = el("div", { class: "multiple", style: "margin-bottom:14px" },
       el("h3", {}, `${spec.title} [${spec.unit}]`));
     chart.append(wrap);
@@ -1828,7 +1844,10 @@ function renderHypodd() {
   }
 
   const body = el("tbody");
+  let skipGroup = false;
   for (const row of HYPODD_ROWS) {
+    if (row.group) skipGroup = row.cc && !hasCC;
+    if (skipGroup) continue;
     if (row.group) { body.append(el("tr", { class: "group" }, el("td", { colspan: runs.length + 1 }, row.group))); continue; }
     const values = runs.map((r) => get(cmp.results[r], row.key));
     const nums = values.filter(isNum);

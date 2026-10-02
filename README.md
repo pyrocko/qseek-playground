@@ -65,25 +65,33 @@ just hypodd campi-flegrei ssst                 # into campi-flegrei/runs/ssst-hy
 just hypodd-compare campi-flegrei dev-hypodd ssst
 ```
 
-`just hypodd` exports the run with `qseek export hypodd` into `runs/<run>-hypodd/hypodd/`, runs ph2dt and hypoDD there and writes the relocated detections to `runs/<run>-hypodd/csv/detections.csv`. The HypoDD run is a run like any other: `just compare`, `just runs` and the dashboard show it. It contains only the relocated detections, so `just compare` against the source run counts the others as lost. Change the export settings with `--set`, e.g. `--set hypodd.iterations.0.damping=50`.
+`just hypodd` exports the run with `qseek export hypodd` into `runs/<run>-hypodd/hypodd/`, runs ph2dt and hypoDD there and writes the relocated detections to `runs/<run>-hypodd/csv/detections.csv`. The HypoDD run is a run like any other: `just compare`, `just runs` and the dashboard show it. It contains only the relocated detections, so `just compare` against the source run counts the others as lost. Change the export settings with `--set`, e.g. `--set hypodd.iterations.0.damping=50`. `--cc` cross-correlates the waveforms of close events for `dt.cc`, then `--set` reaches its settings too, e.g. `--set cross_correlation.bandpass.1=20`.
+
+```sh title="Relocate with catalog and cross-correlation data"
+just hypodd campi-flegrei dev dev-hypodd-cc --cc
+just hypodd-compare campi-flegrei dev-hypodd-cc ssst dev-hypodd
+```
 
 `just hypodd` compares the HypoDD locations with those of the source run. `just hypodd-compare` adds other runs, on the events common to all of them:
 
-- the double-difference residuals of every run's locations, evaluated by hypoDD on the same catalog differential times `dt.ct` without moving the events;
+- the double-difference residuals of every run's locations, evaluated by hypoDD on the same catalog differential times `dt.ct` without moving the events, and on the cross-correlation times `dt.cc` if the HypoDD run has them;
 - the nearest-neighbor distance and the depth distribution;
 - the epicenter and depth offsets to the reference catalog;
 - the shift to the HypoDD locations, absolute and after removing the median shift.
 
 The dashboard shows the comparison in its HypoDD panel, with the summary of the hypoDD run. On Campi Flegrei, HypoDD relocates 340 of the 424 exported detections of `dev`:
 
-| Metric, 340 common events | `dev` | `ssst` | `dev-hypodd` |
-| --- | --- | --- | --- |
-| Double-difference residual, median abs. [ms] | 72.8 | 65.7 | 54.1 |
-| P residual, median abs. [ms] | 66.8 | 60.9 | 34.4 |
-| S residual, median abs. [ms] | 78.6 | 70.4 | 82.4 |
-| Nearest neighbor, median [m] | 156 | 129 | 136 |
-| Epicenter offset to INGV, median [m] | 241 | 239 | 253 |
-| Relative shift to HypoDD, median [m] | 360 | 277 | 0 |
+| Metric, 340 common events | `dev` | `ssst` | `dev-hypodd` | `dev-hypodd-cc` |
+| --- | --- | --- | --- | --- |
+| Double-difference residual, median abs. [ms] | 72.8 | 65.7 | 54.1 | 78.6 |
+| P residual, median abs. [ms] | 66.8 | 60.9 | 34.4 | 60.1 |
+| S residual, median abs. [ms] | 78.6 | 70.4 | 82.4 | 102.4 |
+| Cross-correlation residual, median abs. [ms] | 54.1 | 47.7 | 47.4 | 21.0 |
+| Nearest neighbor, median [m] | 156 | 129 | 136 | 114 |
+| Epicenter offset to INGV, median [m] | 241 | 239 | 253 | 258 |
+| Depth offset to INGV, median abs. [m] | 329 | 295 | 286 | 274 |
+
+The residuals of the cross-correlation times do not depend on the picks, and only `dev-hypodd-cc` was fit to them: on these, `ssst` is as good as HypoDD with catalog data. `dev-hypodd-cc` down-weights the catalog data in its last iterations (Table 1 of the HypoDD user guide), so its catalog residuals grow.
 
 ## Recipes
 
@@ -103,7 +111,7 @@ Run `just` to list all recipes. The example defaults to `campi-flegrei` and the 
 | `just explore`, `just snuffler` | Open a run in the web UI or in Pyrocko Snuffler. |
 | `just dashboard [port]` | Serve the playground dashboard on http://127.0.0.1:2214 to compare runs. |
 | `just catalog <example>` | Download the reference catalog again. |
-| `just hypodd <example> <from> [run] [--set key=value] [--force]` | Relocate the detections of a run with HypoDD into `<from>-hypodd`. Needs `HYPODD_BIN`. |
+| `just hypodd <example> <from> [run] [--cc] [--set key=value] [--force]` | Relocate the detections of a run with HypoDD into `<from>-hypodd`. Needs `HYPODD_BIN`. |
 | `just hypodd-compare <example> <hypodd-run> [runs...]` | Compare a HypoDD run with its source run and other runs on their common events. |
 | `just remove <example> <run>` | Delete a run. |
 

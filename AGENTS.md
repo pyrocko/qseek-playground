@@ -7,6 +7,8 @@ The playground has two jobs:
 
 The repository is public. Keep it free of private code and credentials.
 
+The Qseek docs describe the playground on the page "Playground" under "Get started": `../qseek/docs/getting-started/playground.md`. When you change a recipe, the setup or the examples here, update that page as well. Its text follows `../qseek/DOCS_STYLE.md`.
+
 ## How Qseek is run
 
 - Everything that imports Qseek runs with the venv of the Qseek checkout: `uv run --project ../qseek --no-sync`. `QSEEK_DIR` points to another checkout.
@@ -81,9 +83,10 @@ Gated run metrics in `just compare`: picks per event, residual RMS, search time,
 `scripts/hypodd.py` (`just hypodd`, `just hypodd-compare`) relocates the detections of a run with HypoDD as a reference for the Qseek locations. The binaries come from `HYPODD_BIN` (on the workstation `~/Development/HypoDD/bin`, see its `AGENTS.md`) or the `PATH`.
 
 - `just hypodd <example> <from> [run]` runs `qseek export hypodd` into `runs/<run>/hypodd/`, then ph2dt and hypoDD in that directory, and writes the relocated detections to `runs/<run>/csv/detections.csv` with the columns of the source run. Location and origin time come from `hypoDD.reloc`; `rms` and the uncertainties are empty, the HypoDD columns `hypodd_id`, `hypodd_cluster`, `hypodd_nctp`, `hypodd_ncts`, `hypodd_rct` are added. `playground-run.json` holds the export settings and a summary of the hypoDD run (`hypodd`: linked and relocated events, clusters, final iteration, median CND).
+- `--cc` adds `"cross_correlation": {}` to the export settings: `qseek export hypodd` correlates the waveforms of close events (the SDS archive of the example) and writes `dt.cc`; hypoDD runs with `IDAT=3`, `station.dat` and the weighting of Table 1 of the HypoDD user guide. On Campi Flegrei `dev`: 1391 pairs, 8458 differential times, about 30 s.
 - hypoDD loops forever when its inversion fails with NaN; the script stops it after 10 minutes. `qseek export hypodd` writes the top of the first layer 1 km above sea level to avoid one cause of it: a source at exactly the top of the first layer.
 - The dashboard's HypoDD panel shows `hypodd-comparison.json` and the hypoDD summary of every HypoDD run (`/api/examples/<example>/hypodd`); it follows the HypoDD run that is A or B, or whose source run is.
-- `just hypodd-compare <example> <hypodd-run> [runs...]` pairs the source run and the other runs with the exported events by origin time, restricts all to the common events and writes `runs/<hypodd-run>/hypodd-comparison.json`. The double-difference residuals come from a hypoDD run per location set in `runs/<hypodd-run>/hypodd-evaluation/<run>/`: one iteration with damping 10⁶ on the `dt.ct` of the HypoDD run, the travel times shifted to each run's origin times, all data and no clustering. `hypoDD.res` of that run holds the residuals at the given locations. Lower is better, but HypoDD minimizes this measure, so it favors the HypoDD locations; compare Qseek runs with each other on it.
+- `just hypodd-compare <example> <hypodd-run> [runs...]` pairs the source run and the other runs with the exported events by origin time, restricts all to the common events and writes `runs/<hypodd-run>/hypodd-comparison.json`. The double-difference residuals come from a hypoDD run per location set in `runs/<hypodd-run>/hypodd-evaluation/<run>/`: one iteration with damping 10⁶ on the `dt.ct` and, if present, the `dt.cc` of the HypoDD run, the travel times shifted to each run's origin times, all data and no clustering. The cross-correlation residuals (`dd_residuals.cc*`) do not depend on the picks: they compare Qseek runs and HypoDD runs without `dt.cc` on independent data. `hypoDD.res` of that run holds the residuals at the given locations. Lower is better, but HypoDD minimizes this measure, so it favors the HypoDD locations; compare Qseek runs with each other on it.
 - Defaults of the export: P weight 1, S weight 0.5, three sets of 5 iterations, damping 80, air-quakes kept (`IAQ=0`). On Campi Flegrei keeping the air-quakes relocates 340 instead of 323 detections at the same residuals. Equal P and S weights (`dev-hypodd-s1`, with air-quakes removed) lower the median residual from 52 to 49 ms and balance P and S (47 and 51 ms), but move the depths 180 m above the INGV depths.
 
 ## Examples
@@ -103,7 +106,7 @@ Create a directory with:
 - `reference/` with the catalog from `just catalog <example>`.
 - `baseline/` from `just search` and `just bless`.
 
-Add the example to the tables in `README.md` and here. Data stays out of git: `*/sds/`, `*/metadata/` and `*/runs/` are ignored.
+Add the example to the tables in `README.md` and here, and to the table on the playground page of the Qseek docs. Data stays out of git: `*/sds/`, `*/metadata/` and `*/runs/` are ignored.
 
 ## Conventions
 

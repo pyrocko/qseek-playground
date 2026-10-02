@@ -72,7 +72,7 @@ remove example run:
 dashboard port="2214":
     {{ playground }} dashboard --port "$1"
 
-# Relocate the detections of a run with HypoDD into <run>-hypodd; options: --set key.path=value, --force
+# Relocate the detections of a run with HypoDD into <run>-hypodd; options: --cc, --set key.path=value, --force
 hypodd example="campi-flegrei" from="dev" *options:
     {{ uv_run }} python {{ quote(justfile_directory() / "scripts" / "hypodd.py") }} relocate "$@"
 
