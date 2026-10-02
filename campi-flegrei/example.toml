@@ -1,0 +1,24 @@
+# Settings of the playground scripts for this example, see ../AGENTS.md.
+
+# Search configuration used by `just search`, relative to this directory
+config = "campi-flegrei.json"
+
+[reference]
+# INGV catalog, all events within 0.1° of the caldera on 20 May 2024
+catalog = "reference/ingv-catalog.txt"
+url = "https://webservices.ingv.it/fdsnws/event/1/query?starttime=2024-05-20T00:00:00&endtime=2024-05-21T00:00:00&lat=40.827&lon=14.139&maxradius=0.1&orderby=time-asc&format=text"
+# A detection matches a catalog event within this origin time difference, in seconds
+max_time_difference = 3.0
+# Detection table column compared with the catalog magnitude (Md)
+magnitude_column = "ML-campi-flegrei"
+
+[metrics]
+# Detections with at least this many phase picks count as well constrained
+min_picks = 8
+# The dashboard pairs the detections of two runs within this origin time difference, in s
+pair_max_time_difference = 1.0
+
+# Override the regression tolerances of `just compare` for this example, e.g.
+# [tolerances."reference.epicenter_offset_median_m"]
+# tolerance = 25.0
+# rel_tolerance = 0.1

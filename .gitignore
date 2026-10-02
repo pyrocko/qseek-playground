@@ -1,0 +1,8 @@
+# Downloaded data and search results
+*/sds/
+*/metadata/
+*/runs/
+*/download.log
+
+__pycache__/
+.venv/

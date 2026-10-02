@@ -1,0 +1,30 @@
+{
+  "writer": {"sds_archive": "sds"},
+  "clients": [{"url": "https://webservices.ingv.it/"}],
+  "metadata_path": "metadata",
+  "time_range": ["2024-05-20", "2024-05-21"],
+  "station_selection": [
+    "IV.CAAM",
+    "IV.CAWE",
+    "IV.CBAC",
+    "IV.CBAG",
+    "IV.CCAP",
+    "IV.CFMN",
+    "IV.CMIS",
+    "IV.CMSN",
+    "IV.CMTS",
+    "IV.CNIS",
+    "IV.COLB",
+    "IV.CPIS",
+    "IV.CPOZ",
+    "IV.CQUE",
+    "IV.CSFT",
+    "IV.CSOB",
+    "IV.CSTH",
+    "IV.PTMR",
+    "IX.NAPI"
+  ],
+  "channel_priority": ["HH[ZNE12]", "EH[ZNE12]", "HN[ZNE12]"],
+  "min_channels_per_station": 3,
+  "max_sampling_rate": 200.0
+}

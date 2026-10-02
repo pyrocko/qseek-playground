@@ -1,0 +1,1964 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qseek Playground</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='14' height='14' rx='3' fill='%23d95926'/%3E%3Cpath d='M4 11 L7 5 L9 9 L12 4' stroke='white' stroke-width='1.6' fill='none'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --a: #2a78d6;
+  --b: #eb6834;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warn: #fab219;
+  --bad: #d03b3b;
+  --mid: #f0efec;
+  --run-1: #1baf7a;
+  --run-2: #eda100;
+  --run-3: #e87ba4;
+  --run-4: #4a3aa7;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 8px 24px rgba(11, 11, 11, 0.04);
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "MonoLisa", "JetBrains Mono", "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --a: #3987e5;
+    --b: #d95926;
+    --good-text: #0ca30c;
+    --mid: #383835;
+    --run-1: #199e70;
+    --run-2: #c98500;
+    --run-3: #d55181;
+    --run-4: #9085e9;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --a: #3987e5;
+  --b: #d95926;
+  --good-text: #0ca30c;
+  --mid: #383835;
+  --run-1: #199e70;
+  --run-2: #c98500;
+  --run-3: #d55181;
+  --run-4: #9085e9;
+  --shadow: none;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.mono, code, .num { font-family: var(--mono); font-feature-settings: "tnum" 1; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+a { color: inherit; }
+button, select, input { font: inherit; color: inherit; }
+
+/* Header */
+header {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--page) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.bar {
+  max-width: 1480px; margin: 0 auto; padding: 10px 24px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
+.brand b { font-weight: 650; }
+.brand span { color: var(--muted); }
+.spacer { flex: 1; }
+.picker { display: flex; align-items: center; gap: 6px; }
+.picker label { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.select {
+  appearance: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 5px 28px 5px 10px; font-family: var(--mono); font-size: 13px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 10px) 50%;
+  background-size: 4px 4px; background-repeat: no-repeat;
+}
+.select:focus-visible, .btn:focus-visible { outline: 2px solid var(--a); outline-offset: 1px; }
+.key { display: inline-block; width: 14px; height: 2px; border-radius: 1px; vertical-align: middle; }
+.key.a { background: var(--a); }
+.key.b { background: var(--b); }
+.key.sq { width: 10px; height: 10px; border-radius: 2px; }
+td.best { font-weight: 600; color: var(--ink); }
+.btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  cursor: pointer; font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+}
+.btn:hover { background: var(--surface-2); color: var(--ink); }
+.btn[aria-pressed="true"] { color: var(--ink); background: var(--surface-2); border-color: var(--axis); }
+.live { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+.dot.stale { background: var(--muted); }
+.dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+main { max-width: 1480px; margin: 0 auto; padding: 20px 24px 64px; display: grid; gap: 20px; }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow); padding: 16px 18px; min-width: 0;
+}
+.card h2 {
+  margin: 0 0 2px; font-size: 11px; font-family: var(--mono); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-2);
+}
+.card .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.card-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.card-head > div:first-child { flex: 1; min-width: 200px; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 20px; }
+.grid-2b { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; }
+@media (max-width: 1080px) { .grid-2, .grid-2b { grid-template-columns: minmax(0, 1fr); } }
+
+/* Banner */
+.banner {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface); font-size: 13px;
+}
+.banner .num { color: var(--ink-2); }
+
+/* Verdict */
+.verdict { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+@media (max-width: 1080px) { .verdict { grid-template-columns: minmax(0, 1fr); } }
+.status-big { display: flex; align-items: center; gap: 12px; }
+.status-big .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.status-big .detail { color: var(--ink-2); font-size: 13px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px;
+  padding: 2px 9px; font-size: 12px; font-family: var(--mono); color: var(--ink-2); background: var(--surface);
+}
+.ident { border-left: 2px solid var(--a); padding-left: 14px; }
+.ident.b { border-left-color: var(--b); }
+.ident .name { font-family: var(--mono); font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ident .role { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin-top: 8px; font-size: 12px; }
+.kv dt { color: var(--muted); font-family: var(--mono); }
+.kv dd { margin: 0; font-family: var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.badge { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); color: var(--ink-2); }
+
+/* Tiles */
+.tiles { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1400px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { padding: 14px 16px; }
+.tile .label { font-size: 12px; color: var(--ink-2); }
+.tile .value { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin: 4px 0 2px; font-family: var(--mono); }
+.tile .value small { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+.tile .delta { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; font-family: var(--mono); }
+
+/* Status */
+.st { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; color: var(--ink-2); }
+.st svg { flex: none; }
+.st.better .ic { color: var(--good); }
+.st.regression .ic { color: var(--bad); }
+.st.worse .ic { color: var(--warn); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th {
+  text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 10px; border-bottom: 1px solid var(--axis); white-space: nowrap;
+}
+td { padding: 6px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+th.r, td.r { text-align: right; }
+tbody tr:hover { background: var(--surface-2); }
+tr.group td { color: var(--muted); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding-top: 14px; border-bottom-color: var(--axis); background: none; }
+tr.dim td { color: var(--muted); }
+tr.sel-a td:first-child { box-shadow: inset 2px 0 0 var(--a); }
+tr.sel-b td:first-child { box-shadow: inset 2px 0 0 var(--b); }
+tr.sel-a.sel-b td:first-child { box-shadow: inset 2px 0 0 var(--a), inset 4px 0 0 var(--b); }
+.scroll { max-height: 420px; overflow: auto; }
+.scroll thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.muted { color: var(--muted); }
+.ink2 { color: var(--ink-2); }
+.pickbtns { display: inline-flex; gap: 4px; }
+.pickbtns button { border: 1px solid var(--border); background: none; border-radius: 5px; font-family: var(--mono); font-size: 11px; padding: 1px 6px; cursor: pointer; color: var(--muted); }
+.pickbtns button:hover { color: var(--ink); background: var(--surface-2); }
+.pickbtns button.on-a { color: var(--ink); border-color: var(--a); }
+.pickbtns button.on-b { color: var(--ink); border-color: var(--b); }
+
+/* Charts */
+svg { display: block; overflow: visible; }
+svg text { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+.gridline { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.axisline { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.frame { fill: none; stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.controls .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.range { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.range input { accent-color: var(--ink-2); width: 120px; }
+.multiples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+@media (max-width: 640px) { .multiples { grid-template-columns: minmax(0, 1fr); } }
+.multiple h3 { margin: 0 0 4px; font-size: 12px; font-weight: 500; color: var(--ink-2); display: flex; justify-content: space-between; }
+.multiple h3 span { font-family: var(--mono); color: var(--muted); font-weight: 400; }
+.note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.empty { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
+.stale-frame { opacity: 0.55; transition: opacity 0.2s; }
+.recall-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px; gap: 10px; align-items: center; font-size: 12px; margin: 6px 0; }
+.recall-row .bars { display: grid; gap: 3px; }
+.recall-row .track { height: 6px; background: var(--grid); border-radius: 3px; position: relative; overflow: hidden; }
+.recall-row .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+
+/* Tooltip */
+.tt {
+  position: fixed; z-index: 50; pointer-events: none; min-width: 140px; max-width: 280px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 8px 10px; font-size: 12px; opacity: 0; transition: opacity 0.08s;
+}
+.tt.on { opacity: 1; }
+.tt .tt-title { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.tt .tt-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.tt .tt-row b { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+.tt .tt-row span { color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+
+@media (max-width: 640px) {
+  .bar { padding: 10px 16px; }
+  main { padding: 16px 16px 48px; }
+}
+.chip-v { font-weight: 600; color: var(--ink); }
+.st.changed .ic { color: var(--ink-2); }
+.multiples.wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1080px) { .multiples.wide { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .multiples.wide { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><b>qseek</b><span>/</span><b>playground</b></div>
+    <div class="picker"><label for="sel-example">example</label><select id="sel-example" class="select"></select></div>
+    <div class="spacer"></div>
+    <div class="picker"><span class="key a" aria-hidden="true"></span><label for="sel-a">A</label><select id="sel-a" class="select"></select></div>
+    <button id="swap" class="btn" title="Swap A and B" aria-label="Swap A and B">⇄</button>
+    <div class="picker"><span class="key b" aria-hidden="true"></span><label for="sel-b">B</label><select id="sel-b" class="select"></select></div>
+    <div class="spacer"></div>
+    <div class="live" title="The dashboard polls the run directories every 4 s"><span id="live-dot" class="dot"></span><span id="live-text">connecting</span></div>
+    <button id="theme" class="btn" title="Theme">auto</button>
+  </div>
+</header>
+
+<main id="main">
+  <div id="banner"></div>
+
+  <section class="card">
+    <div class="verdict" id="verdict"></div>
+  </section>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>Changes from A to B</h2><p class="sub" id="det-sub"></p></div>
+      <div class="controls" id="det-controls"></div>
+    </div>
+    <div class="chips" id="shift-stats" style="margin:0 0 14px"></div>
+    <div class="grid-2b">
+      <div id="map"></div>
+      <div>
+        <div class="legend" style="margin-bottom:10px"><span class="ink2">Paired detections, B − A</span><span class="muted">the tick marks the median</span></div>
+        <div class="multiples" id="deltas"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-head">
+        <div><h2>Changed detections</h2><p class="sub" id="changed-sub"></p></div>
+        <div class="controls" id="changed-tabs"></div>
+      </div>
+      <div class="scroll table-wrap" id="changed"></div>
+    </section>
+    <section class="card">
+      <div class="card-head">
+        <div><h2>Detections over time</h2><p class="sub" id="time-sub"></p></div>
+      </div>
+      <div id="timeline"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>Detection quality</h2><p class="sub" id="dist-sub"></p></div>
+      <div class="legend" id="dist-legend"></div>
+    </div>
+    <div class="multiples wide" id="dists"></div>
+  </section>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-head">
+        <div><h2>Run metrics</h2><p class="sub">Metrics of each run, B against A. Gated metrics fail <code>just compare</code> when B is worse by more than the tolerance.</p></div>
+      </div>
+      <div class="table-wrap" id="metrics"></div>
+    </section>
+    <section class="card">
+      <div class="card-head">
+        <div><h2>Across runs</h2><p class="sub" id="trend-sub">Runs in order of creation; the hairline is the baseline.</p></div>
+        <select id="sel-trend" class="select" aria-label="Metric of the upper chart"></select>
+      </div>
+      <div id="trend"></div>
+      <div class="card-head" style="margin-top:18px">
+        <div></div>
+        <select id="sel-trend2" class="select" aria-label="Metric of the lower chart"></select>
+      </div>
+      <div id="trend2"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>Reference catalog</h2><p class="sub" id="ref-sub"></p></div>
+      <div class="controls" id="ref-controls"></div>
+    </div>
+    <div class="grid-2b">
+      <div id="dumbbell"></div>
+      <div id="recall"></div>
+    </div>
+    <div class="scroll table-wrap" style="margin-top:16px;max-height:320px" id="ref-table"></div>
+  </section>
+
+  <section class="card" id="hypodd-card" hidden>
+    <div class="card-head">
+      <div><h2>HypoDD relocation</h2><p class="sub" id="hypodd-sub"></p></div>
+      <select id="sel-hypodd" class="select" aria-label="HypoDD run"></select>
+    </div>
+    <div class="chips" id="hypodd-chips" style="margin:0 0 14px"></div>
+    <div class="grid-2b">
+      <div>
+        <div class="legend" id="hypodd-legend" style="margin-bottom:8px"></div>
+        <div id="hypodd-chart"></div>
+      </div>
+      <div class="table-wrap" id="hypodd-table"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>Runs</h2><p class="sub" id="runs-sub">All runs of the example against the baseline. Pick A and B in the last column.</p></div>
+    </div>
+    <div class="table-wrap" id="runs"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>Configuration and environment</h2><p class="sub">Fields of the resolved <code>search.json</code> and of the environment that differ between A and B.</p></div>
+    </div>
+    <div class="table-wrap" id="diff"></div>
+  </section>
+</main>
+<div class="tt" id="tt" role="tooltip"></div>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- state
+
+const state = {
+  examples: [],
+  example: null,
+  overview: null,
+  signature: "",
+  a: null,
+  b: null,
+  details: {},      // name -> run detail
+  compare: null,    // per-run rows, association and pairs of A and B
+  derived: null,    // pairs and changes under the current filter
+  lastOk: 0,
+  minPicks: 0,
+  layers: { a: true, b: true, shift: true, ref: false },
+  extent: "data",
+  changedTab: "lost",
+  refMetric: "offset_m",
+  trendMetrics: { trend: "vs.n_lost_good", trend2: "vs.shift_horizontal_median_m" },
+  hypodd: [],       // HypoDD runs with their comparison, newest first
+  hypoddSig: "",
+  hypoddRun: null,  // HypoDD run picked in the panel, null follows A and B
+};
+
+const GROUPS = { detections: "Detections", runtime: "Runtime", reference: "Reference catalog" };
+const SVGNS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- helpers
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") node.className = v;
+    else if (k === "style") node.style.cssText = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+function s(tag, attrs = {}, parent = null) {
+  const node = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v != null) node.setAttribute(k, v);
+  if (parent) parent.append(node);
+  return node;
+}
+
+function text(parent, x, y, str, attrs = {}) {
+  const t = s("text", { x, y, ...attrs }, parent);
+  t.textContent = str;
+  return t;
+}
+
+async function api(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function get(obj, key) {
+  return key.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), obj);
+}
+
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+// Math.min(...values) overflows the call stack for large catalogs
+const minOf = (values) => values.reduce((m, v) => (v < m ? v : m), Infinity);
+const maxOf = (values) => values.reduce((m, v) => (v > m ? v : m), -Infinity);
+
+function decimals(key) {
+  if (/(^|\.)n_/.test(key)) return 0;
+  if (/recall$/.test(key)) return 3;
+  if (/_m$|_mib|mib_s|^m$/.test(key)) return 1;
+  if (/time_offset|time_shift|rms|semblance|^s$/.test(key)) return 3;
+  if (/_s$/.test(key)) return 1;
+  if (/magnitude/.test(key)) return 2;
+  if (/median$|mean$/.test(key)) return 1;
+  return 0;
+}
+
+function fmt(v, key = "", signed = false) {
+  if (!isNum(v)) return v == null ? "–" : String(v);
+  if (/fraction$/.test(key)) return `${(v * 100).toFixed(0)}%`;
+  const d = decimals(key);
+  let out = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const zero = Number(out.replace(/,/g, "")) === 0;
+  if (v < 0 && !zero) out = "−" + out;
+  else if (signed && v > 0 && !zero) out = "+" + out;
+  return out;
+}
+
+function fmtPct(delta, ref) {
+  if (!isNum(delta) || !isNum(ref) || ref === 0) return "";
+  const p = (delta / Math.abs(ref)) * 100;
+  if (Math.abs(p) < 0.05) return "0.0%";
+  return (p > 0 ? "+" : "−") + Math.abs(p).toFixed(1) + "%";
+}
+
+const shortTime = (iso) => (iso ? iso.replace("T", " ").slice(0, 16) : "–");
+const clockTime = (iso) => (iso ? iso.slice(11, 19) : "–");
+const fullTime = (iso) => (iso ? iso.replace("T", " ").slice(0, 22) : "–");
+
+function ago(iso) {
+  if (!iso) return "";
+  const sec = (Date.now() - Date.parse(iso)) / 1000;
+  if (sec < 90) return `${Math.round(sec)} s ago`;
+  if (sec < 5400) return `${Math.round(sec / 60)} min ago`;
+  if (sec < 129600) return `${Math.round(sec / 3600)} h ago`;
+  return `${Math.round(sec / 86400)} d ago`;
+}
+
+function niceTicks(min, max, count = 5) {
+  if (!isNum(min) || !isNum(max)) return [];
+  if (min === max) { min -= 1; max += 1; }
+  const step0 = (max - min) / count;
+  const mag = 10 ** Math.floor(Math.log10(step0));
+  const err = step0 / mag;
+  const step = (err >= 7.5 ? 10 : err >= 3.5 ? 5 : err >= 1.5 ? 2 : 1) * mag;
+  const ticks = [];
+  for (let t = Math.ceil(min / step) * step; t <= max + step * 1e-9; t += step) ticks.push(+t.toFixed(10));
+  return ticks;
+}
+
+function tickFormat(ticks) {
+  const step = ticks.length > 1 ? Math.abs(ticks[1] - ticks[0]) : 1;
+  const d = Math.max(0, Math.min(6, -Math.floor(Math.log10(step) + 1e-9)));
+  return (t) => (t < 0 ? "−" : "") + Math.abs(t).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+function scale(d0, d1, r0, r1) {
+  const k = d1 === d0 ? 0 : (r1 - r0) / (d1 - d0);
+  const f = (v) => r0 + (v - d0) * k;
+  f.invert = (p) => d0 + (p - r0) / (k || 1);
+  return f;
+}
+
+function quantile(values, q) {
+  const v = values.filter(isNum).sort((x, y) => x - y);
+  if (!v.length) return null;
+  const pos = (v.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return v[lo] + (v[hi] - v[lo]) * (pos - lo);
+}
+
+const ICONS = {
+  better: '<svg class="ic" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M4.5 8.2l2.3 2.3 4.7-4.9" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  regression: '<svg class="ic" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M5.3 5.3l5.4 5.4M10.7 5.3l-5.4 5.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  worse: '<svg class="ic" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l7 13H1z" fill="currentColor"/><path d="M8 6v4" stroke="#111" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="12.2" r="1" fill="#111"/></svg>',
+  ok: '<svg class="ic" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  changed: '<svg class="ic" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M4 8h8M9.5 5.5L12 8l-2.5 2.5" stroke="var(--surface)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const STATUS_TEXT = { better: "better", regression: "regression", worse: "worse, not gated", ok: "within tolerance", changed: "changed" };
+
+function statusEl(status, label) {
+  const span = el("span", { class: `st ${status}` });
+  span.innerHTML = ICONS[status] || "";
+  span.append(document.createTextNode(label ?? STATUS_TEXT[status] ?? ""));
+  return span;
+}
+
+function chip(label, value, attrs = {}) {
+  return el("span", { class: "chip", ...attrs }, el("span", { class: "muted" }, label), value == null ? null : el("b", { class: "num chip-v" }, value));
+}
+
+// ---------------------------------------------------------------- tooltip
+
+const tt = $("tt");
+
+function showTip(evt, title, rows) {
+  tt.replaceChildren();
+  if (title) tt.append(el("div", { class: "tt-title" }, title));
+  for (const r of rows) {
+    const label = el("span", {}, r.color ? el("span", { class: "key", style: `background:${r.color}` }) : null, r.label);
+    tt.append(el("div", { class: "tt-row" }, label, el("b", {}, r.value)));
+  }
+  tt.classList.add("on");
+  const pad = 14, w = tt.offsetWidth, h = tt.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > window.innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + h > window.innerHeight - 8) y = evt.clientY - h - pad;
+  tt.style.left = `${Math.max(8, x)}px`;
+  tt.style.top = `${Math.max(8, y)}px`;
+}
+
+function hideTip() { tt.classList.remove("on"); }
+
+// ---------------------------------------------------------------- theme
+
+const THEMES = ["auto", "light", "dark"];
+function applyTheme(t) {
+  if (t === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  $("theme").textContent = t;
+  try { localStorage.setItem("qseek-playground-theme", t); } catch (e) { /* storage unavailable */ }
+}
+$("theme").addEventListener("click", () => {
+  applyTheme(THEMES[(THEMES.indexOf($("theme").textContent) + 1) % THEMES.length]);
+  renderAll();
+});
+try { applyTheme(localStorage.getItem("qseek-playground-theme") || "auto"); } catch (e) { applyTheme("auto"); }
+
+// ---------------------------------------------------------------- data flow
+
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  return { example: p.get("example"), a: p.get("a"), b: p.get("b") };
+}
+
+function writeHash() {
+  const p = new URLSearchParams({ example: state.example || "", a: state.a || "", b: state.b || "" });
+  history.replaceState(null, "", "#" + p.toString());
+}
+
+const selectableRuns = () => (state.overview?.runs || []).filter((r) => r.metrics);
+const runByName = (name) => (state.overview?.runs || []).find((r) => r.name === name);
+const envOf = (name) => runByName(name)?.metrics?.environment || {};
+
+function defaultPair() {
+  const runs = selectableRuns();
+  const done = runs.filter((r) => r.name !== "baseline")
+    .sort((x, y) => (x.metrics.created || "").localeCompare(y.metrics.created || ""));
+  const a = runs.find((r) => r.name === "baseline")?.name || done[0]?.name || null;
+  const b = done.length ? done[done.length - 1].name : a;
+  return { a, b };
+}
+
+function runSignature(overview) {
+  return JSON.stringify((overview.runs || []).map((r) => [r.name, r.state, r.metrics?.created, r.progress?.n_detections, r.progress?.time_progress]));
+}
+
+async function loadExample(name, pair = {}) {
+  state.example = name;
+  state.details = {};
+  state.overview = await api(`/api/examples/${encodeURIComponent(name)}/runs`);
+  state.signature = runSignature(state.overview);
+  state.minPicks = state.overview.settings?.metrics?.min_picks ?? 0;
+  state.hypoddRun = null;
+  await loadHypodd();
+  const names = new Set(selectableRuns().map((r) => r.name));
+  const def = defaultPair();
+  state.a = names.has(pair.a) ? pair.a : def.a;
+  state.b = names.has(pair.b) ? pair.b : def.b;
+  await loadSelection();
+}
+
+async function loadDetail(name) {
+  if (!name) return null;
+  const cached = state.details[name];
+  if (cached && cached.metrics?.created === runByName(name)?.metrics?.created) return cached;
+  const detail = await api(`/api/examples/${encodeURIComponent(state.example)}/runs/${encodeURIComponent(name)}`);
+  state.details[name] = detail;
+  return detail;
+}
+
+let selectionSeq = 0;
+
+async function loadSelection() {
+  writeHash();
+  const seq = ++selectionSeq;
+  const a = state.a, b = state.b;
+  $("main").classList.add("stale-frame");
+  try {
+    const ex = encodeURIComponent(state.example);
+    const [, , cmp] = await Promise.all([
+      loadDetail(a),
+      loadDetail(b),
+      a && b ? api(`/api/examples/${ex}/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`) : null,
+    ]);
+    // A newer selection started while this one loaded; its result wins.
+    if (seq !== selectionSeq) return;
+    state.compare = cmp ? { ...cmp, key: `${a}|${b}` } : null;
+  } finally {
+    if (seq === selectionSeq) $("main").classList.remove("stale-frame");
+  }
+  renderAll();
+}
+
+async function loadHypodd() {
+  try {
+    const list = await api(`/api/examples/${encodeURIComponent(state.example)}/hypodd`);
+    const sig = JSON.stringify(list.map((r) => [r.run, r.modified]));
+    const changed = sig !== state.hypoddSig;
+    state.hypodd = list;
+    state.hypoddSig = sig;
+    return changed;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function poll() {
+  if (!state.example) return;
+  if (await loadHypodd()) renderHypodd();
+  try {
+    const overview = await api(`/api/examples/${encodeURIComponent(state.example)}/runs`);
+    state.lastOk = Date.now();
+    const sig = runSignature(overview);
+    if (sig !== state.signature) {
+      const prevA = runByName(state.a)?.metrics?.created;
+      const prevB = runByName(state.b)?.metrics?.created;
+      const prevNames = new Set(selectableRuns().map((r) => r.name));
+      state.overview = overview;
+      state.signature = sig;
+      const names = new Set(selectableRuns().map((r) => r.name));
+      const fresh = [...names].filter((n) => !prevNames.has(n));
+      let changed = runByName(state.a)?.metrics?.created !== prevA || runByName(state.b)?.metrics?.created !== prevB;
+      if (!names.has(state.a) || !names.has(state.b)) {
+        const def = defaultPair();
+        if (!names.has(state.a)) state.a = def.a;
+        if (!names.has(state.b)) state.b = def.b;
+        changed = true;
+      }
+      // A run that just finished becomes B, so the dashboard follows the loop.
+      if (fresh.length && prevNames.size) { state.b = fresh[fresh.length - 1]; changed = true; }
+      if (changed) await loadSelection();
+      else renderAll();
+    }
+  } catch (e) {
+    /* server unreachable; the live indicator shows it */
+  }
+  renderLive();
+}
+
+function renderLive() {
+  const age = (Date.now() - state.lastOk) / 1000;
+  const running = (state.overview?.runs || []).some((r) => r.state === "running");
+  $("live-dot").className = "dot" + (age > 15 ? " stale" : running ? " pulse" : "");
+  $("live-text").textContent = age > 15 ? "offline" : running ? "live · run in progress" : "live";
+}
+
+// Pairs and changes of A and B under the current min. picks filter
+function derive() {
+  const dA = state.details[state.a], dB = state.details[state.b];
+  const assoc = state.compare?.key === `${state.a}|${state.b}` ? state.compare.association : null;
+  const out = { dA, dB, available: false, same: state.a === state.b };
+  if (!assoc || !dA?.has_detections || !dB?.has_detections || out.same) return out;
+  const A = dA.detections, B = dB.detections;
+  const goodA = (i) => (A.n_picks[i] ?? 0) >= state.minPicks;
+  const goodB = (i) => (B.n_picks[i] ?? 0) >= state.minPicks;
+  const pairs = state.compare.pairs || [];
+  const pairA = new Map(pairs.map((p) => [p[0], p]));
+  const pairB = new Map(pairs.map((p) => [p[1], p]));
+  const shown = pairs.filter((p) => goodA(p[0]) || goodB(p[1]));
+  const lost = [], added = [];
+  for (let i = 0; i < A.time.length; i++) if (goodA(i) && !pairA.has(i)) lost.push(i);
+  for (let i = 0; i < B.time.length; i++) if (goodB(i) && !pairB.has(i)) added.push(i);
+  const delta = (col) => shown.map((p) => (isNum(B[col][p[1]]) && isNum(A[col][p[0]]) ? B[col][p[1]] - A[col][p[0]] : null)).filter(isNum);
+  return {
+    ...out, available: true, A, B, pairs, pairA, pairB, shown, lost, added, goodA, goodB,
+    nA: A.time.length, nB: B.time.length,
+    nGoodA: A.n_picks.filter((p) => (p ?? 0) >= state.minPicks).length,
+    nGoodB: B.n_picks.filter((p) => (p ?? 0) >= state.minPicks).length,
+    dh: shown.map((p) => p[3]), dz: shown.map((p) => p[4]), dt: shown.map((p) => p[2]),
+    dPicks: delta("n_picks"), dRms: delta("rms"), dSemblance: delta("semblance"), dMag: delta("magnitude"),
+    moved: shown.filter((p) => p[3] > 1 || Math.abs(p[4]) > 1 || Math.abs(p[2]) > 1e-3).length,
+  };
+}
+
+// ---------------------------------------------------------------- render
+
+function renderAll() {
+  if (!state.overview) return;
+  state.derived = derive();
+  renderPickers();
+  renderBanner();
+  renderVerdict();
+  renderTiles();
+  renderChanges();
+  renderChanged();
+  renderTimeline();
+  renderQuality();
+  renderMetrics();
+  renderTrend();
+  renderReference();
+  renderHypodd();
+  renderRuns();
+  renderDiff();
+  renderLive();
+}
+
+function renderFiltered() {
+  state.derived = derive();
+  renderChanges();
+  renderChanged();
+  renderTimeline();
+  renderQuality();
+}
+
+function renderPickers() {
+  $("sel-example").replaceChildren(...state.examples.map((n) => el("option", { value: n, selected: n === state.example }, n)));
+  for (const [id, cur] of [["sel-a", state.a], ["sel-b", state.b]]) {
+    $(id).replaceChildren(...selectableRuns().map((r) => el("option", { value: r.name, selected: r.name === cur }, r.name)));
+  }
+}
+
+function renderBanner() {
+  const box = $("banner");
+  box.replaceChildren();
+  for (const r of (state.overview.runs || []).filter((r) => r.state === "running" || r.state === "stopped")) {
+    const p = r.progress || {};
+    const running = r.state === "running";
+    box.append(el("div", { class: "banner", style: "margin-bottom:8px" },
+      el("span", { class: "dot" + (running ? " pulse" : " stale") }),
+      el("span", {}, el("b", { class: "mono" }, r.name), running ? " is running" : " stopped without metrics"),
+      el("span", { class: "num" }, `data time ${shortTime(p.time_progress)} UTC`),
+      el("span", { class: "num" }, `${p.n_detections ?? 0} detections`),
+      el("span", { class: "num muted" }, p.log_age_s != null ? `last log ${Math.round(p.log_age_s)} s ago` : ""),
+    ));
+  }
+}
+
+function identity(role, name) {
+  const m = runByName(name)?.metrics || {};
+  const env = m.environment || {};
+  const overrides = Object.entries(m.config?.overrides || {});
+  const dl = el("dl", { class: "kv" },
+    el("dt", {}, "qseek"), el("dd", {}, (env.qseek_commit || "?").slice(0, 10), env.qseek_dirty ? "  dirty" : "", env.qseek_version ? `  ${env.qseek_version}` : ""),
+    el("dt", {}, "created"), el("dd", {}, `${shortTime(m.created)}  ${ago(m.created)}`),
+    el("dt", {}, "machine"), el("dd", {}, [env.host, env.gpu].filter(Boolean).join(" · ") || "–"),
+    el("dt", {}, "config"), el("dd", {}, m.config?.config || "–", overrides.length ? "" : "  no overrides"),
+  );
+  for (const [k, v] of overrides) dl.append(el("dt", {}, "--set"), el("dd", {}, `${k}=${JSON.stringify(v)}`));
+  return el("div", { class: `ident ${role}` },
+    el("div", { class: "role" }, role === "a" ? "A · reference" : "B · candidate"),
+    el("div", { class: "name" }, name || "–",
+      name === "baseline" && m.run ? el("span", { class: "badge" }, `from ${m.run}`) : null,
+      env.qseek_dirty ? el("span", { class: "badge" }, "dirty") : null),
+    dl);
+}
+
+function renderVerdict() {
+  const box = $("verdict");
+  box.replaceChildren();
+  const cmp = state.compare;
+  const assoc = cmp?.association;
+  let head;
+  if (!cmp) {
+    head = el("div", { class: "empty" }, "No runs with metrics yet. Start one with just search.");
+  } else {
+    const same = state.a === state.b;
+    const regressions = cmp.regressions.length;
+    const better = cmp.rows.filter((r) => r.status === "better");
+    const worse = cmp.rows.filter((r) => r.status === "worse");
+    let status, title, detail;
+    if (same) { status = "ok"; title = "Same run"; detail = "Pick different runs for A and B."; }
+    else if (assoc?.identical) { status = "ok"; title = "Identical to A"; detail = `All ${assoc.n_a} detections paired and equal in every column of the detection table.`; }
+    else {
+      status = regressions ? "regression" : "changed";
+      title = regressions ? `${regressions} regression${regressions > 1 ? "s" : ""}` : "Changed, no regressions";
+      detail = assoc
+        ? `${assoc.n_paired} of ${assoc.n_a} detections paired · ${assoc.n_lost_good} lost and ${assoc.n_new_good} new with ≥ ${assoc.min_picks} picks · median shift ${fmt(assoc.shift_horizontal_median_m, "_m")} m`
+        : "Detections of A or B not available; comparing the run metrics only.";
+    }
+    const big = el("div", { class: `st ${status}` });
+    big.innerHTML = ICONS[status].replace(/width="13" height="13"/, 'width="30" height="30"');
+    head = el("div", {},
+      el("div", { class: "status-big" }, big, el("div", {}, el("div", { class: "title" }, title), el("div", { class: "detail" }, detail))),
+      same ? null : el("div", { class: "chips" },
+        ...cmp.regressions.map((l) => el("span", { class: "chip" }, statusEl("regression", l))),
+        ...better.map((r) => el("span", { class: "chip" }, statusEl("better", r.label))),
+        ...worse.map((r) => el("span", { class: "chip" }, statusEl("worse", `${r.label}, other machine`))),
+        cmp.newly_missed.length ? el("span", { class: "chip" }, statusEl("worse", `${cmp.newly_missed.length} catalog events newly missed`)) : null,
+        cmp.same_machine ? null : el("span", { class: "chip" }, "different machine, runtime not gated")),
+    );
+  }
+  box.append(head, identity("a", state.a), identity("b", state.b));
+}
+
+const rowFor = (key) => state.compare?.rows.find((r) => r.key === key);
+const assocRow = (key) => state.compare?.association?.rows.find((r) => r.key === `association.${key}`);
+
+function renderTiles() {
+  const box = $("tiles");
+  box.replaceChildren();
+  const a = state.compare?.association;
+  const same = state.a === state.b;
+  const tile = (label, value, unit, sub, status, sub2) => el("div", { class: "card tile" },
+    el("div", { class: "label" }, label),
+    el("div", { class: "value" }, value, unit ? el("small", {}, unit) : null),
+    el("div", { class: "delta" }, sub ? el("span", {}, sub) : null, status ? statusEl(status, "") : null),
+    sub2 ? el("div", { class: "delta muted", style: "margin-top:2px" }, sub2) : null);
+  if (!a || same) {
+    box.append(tile("Paired detections", "–", "", same ? "A and B are the same run" : "detections not available"));
+  } else {
+    const mp = `≥ ${a.min_picks} picks`;
+    const lostRow = assocRow("n_lost_good");
+    box.append(
+      tile("Paired detections", fmt(a.n_paired, "n_"), "", `A ${a.n_a} · B ${a.n_b}`, null, `${a.n_unchanged} unchanged`),
+      tile(`Lost, ${mp}`, fmt(a.n_lost_good, "n_"), "", `${a.n_only_a} only in A in total`, lostRow?.status || "ok", lostRow?.limit != null ? `gate > ${fmt(lostRow.limit, "m")}` : ""),
+      tile(`New, ${mp}`, fmt(a.n_new_good, "n_"), "", `${a.n_only_b} only in B in total`),
+      tile("Horizontal shift", fmt(a.shift_horizontal_median_m, "_m"), " m", `p90 ${fmt(a.shift_horizontal_p90_m, "_m")} m`, null, `median of ${a.n_paired_good} pairs`),
+      tile("Depth shift B − A", fmt(a.shift_depth_median_m, "_m", true), " m", `|Δz| ${fmt(a.shift_depth_abs_median_m, "_m")} m`, null, "median"),
+      tile("RMS B − A", fmt(a.rms_delta_median_s, "rms", true), " s", `${fmt(a.rms_improved_fraction, "fraction")} of pairs lower`, null, "median per pair"),
+      tile("Picks B − A", fmt(a.picks_delta_median, "picks_delta_median", true), "", `${fmt(a.picks_gained_fraction, "fraction")} more · ${fmt(a.picks_lost_fraction, "fraction")} fewer`, null, "median per pair"),
+    );
+  }
+  const st = rowFor("runtime.search_time_s");
+  box.append(tile("Search time", fmt(st?.current, "runtime.search_time_s"), " s",
+    st && isNum(st.delta) ? `${fmt(st.delta, "_s", true)} s ${fmtPct(st.delta, st.reference)}` : "",
+    st?.status || (st?.gated ? "ok" : null), `A ${fmt(st?.reference, "_s")} s`));
+}
+
+// ---------------------------------------------------------------- changes: map and deltas
+
+let mapFocus = null;   // function({kind, i} | null)
+const focus = (target) => mapFocus && mapFocus(target);
+
+function filteredIdx(detail) {
+  if (!detail?.has_detections) return [];
+  const d = detail.detections, out = [];
+  for (let i = 0; i < d.time.length; i++) if ((d.n_picks[i] ?? 0) >= state.minPicks) out.push(i);
+  return out;
+}
+
+let filterTimer = null;
+function scheduleFiltered() {
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(renderFiltered, 60);
+}
+
+function renderChanges() {
+  const D = state.derived;
+  const { dA, dB } = D;
+  const ctrl = $("det-controls");
+  ctrl.replaceChildren();
+  const layer = (k, label, key) => el("button", {
+    class: "btn", "aria-pressed": String(state.layers[k]),
+    onclick: () => { state.layers[k] = !state.layers[k]; renderChanges(); },
+  }, key, label);
+  const range = el("input", { type: "range", min: 0, max: 30, step: 1, value: state.minPicks, "aria-label": "minimum picks" });
+  const rangeVal = el("b", { class: "num" }, String(state.minPicks));
+  range.addEventListener("input", () => { state.minPicks = +range.value; rangeVal.textContent = range.value; scheduleFiltered(); });
+  ctrl.append(
+    el("label", { class: "range" }, "min. picks", range, rangeVal),
+    el("span", { class: "sep" }),
+    layer("a", " A", el("span", { class: "key a" })),
+    layer("b", " B", el("span", { class: "key b" })),
+    layer("shift", "shifts", null),
+    layer("ref", "catalog", null),
+    el("span", { class: "sep" }),
+    el("button", { class: "btn", "aria-pressed": String(state.extent === "volume"), onclick: () => { state.extent = state.extent === "data" ? "volume" : "data"; renderChanges(); } }, "full volume"));
+
+  const iA = filteredIdx(dA), iB = filteredIdx(dB);
+  $("det-sub").textContent = D.available
+    ? `Detections with at least ${state.minPicks} picks in A or B. Each line joins a detection in A with its pair in B; rings mark detections without a pair. Plan view and sections in km from the center of the search volume. The slider filters this section and the ones below it; the tiles and gates use the ${state.compare.association.min_picks} picks of example.toml.`
+    : "Detections of A or B not available.";
+
+  const stats = $("shift-stats");
+  stats.replaceChildren();
+  if (D.same) stats.append(chip("A and B are the same run"));
+  else if (D.available) {
+    stats.append(
+      chip("paired", `${D.shown.length}`),
+      chip("only in A", `${D.lost.length} of ${D.nGoodA}`),
+      chip("only in B", `${D.added.length} of ${D.nGoodB}`),
+      chip("moved", `${D.moved} of ${D.shown.length}`),
+      chip("Δh median · p90", `${fmt(quantile(D.dh, 0.5), "_m")} · ${fmt(quantile(D.dh, 0.9), "_m")} m`),
+      chip("Δz median · |Δz|", `${fmt(quantile(D.dz, 0.5), "_m", true)} · ${fmt(quantile(D.dz.map(Math.abs), 0.5), "_m")} m`),
+      chip("|Δt| median", `${fmt(quantile(D.dt.map(Math.abs), 0.5), "time_shift")} s`),
+      chip(`pairs within ${state.compare.association.max_time_difference_s} s origin time, closest first`));
+  }
+  renderMap(D, iA, iB);
+  renderDeltas(D);
+}
+
+function renderMap(D, iA, iB) {
+  const box = $("map");
+  box.replaceChildren();
+  mapFocus = null;
+  const { dA, dB } = D;
+  const detail = dB || dA;
+  if (!detail) return;
+  const refs = state.layers.ref ? detail.reference || [] : [];
+  const sets = [];
+  if (state.layers.a && dA?.has_detections) sets.push({ id: "a", d: dA.detections, idx: iA, color: "var(--a)", name: state.a });
+  if (state.layers.b && dB?.has_detections && !D.same) sets.push({ id: "b", d: dB.detections, idx: iB, color: "var(--b)", name: state.b });
+
+  let E, N, Z;
+  const vol = detail.volume || {};
+  if (state.extent === "volume" && vol.east) {
+    E = vol.east; N = vol.north; Z = vol.depth;
+  } else {
+    const es = [], ns = [], zs = [];
+    for (const st of sets) for (const i of st.idx) { es.push(st.d.east[i]); ns.push(st.d.north[i]); zs.push(st.d.depth[i]); }
+    for (const r of refs) { es.push(r.east); ns.push(r.north); zs.push(r.depth); }
+    if (!es.length) { box.append(el("div", { class: "empty" }, "No detections to show.")); return; }
+    E = [quantile(es, 0.01), quantile(es, 0.99)]; N = [quantile(ns, 0.01), quantile(ns, 0.99)]; Z = [Math.min(0, quantile(zs, 0.005)), quantile(zs, 0.995)];
+    const span = Math.max(E[1] - E[0], N[1] - N[0], 1) * 0.12;
+    E = [E[0] - span, E[1] + span]; N = [N[0] - span, N[1] + span]; Z = [Z[0], Z[1] + span];
+  }
+  const W = Math.max(300, box.clientWidth || 640);
+  const m = { l: 40, t: 10, r: 8, b: 34, gap: 30 };
+  const k = (W - m.l - m.r - m.gap - 40) / ((E[1] - E[0]) + (Z[1] - Z[0]));
+  const pw = (E[1] - E[0]) * k, ph = (N[1] - N[0]) * k, zw = (Z[1] - Z[0]) * k;
+  const H = m.t + ph + m.gap + zw + m.b;
+  const ox = m.l, oy = m.t, sx = ox + pw + m.gap, sy = oy + ph + m.gap;
+  const xE = scale(E[0], E[1], ox, ox + pw), yN = scale(N[0], N[1], oy + ph, oy);
+  const xZ = scale(Z[0], Z[1], sx, sx + zw), yZ = scale(Z[0], Z[1], sy, sy + zw);
+  const svg = s("svg", { width: W, height: H, role: "img", "aria-label": "Plan view and depth sections of the detections of A and B with their shifts" });
+  const defs = s("defs", {}, svg);
+  const clip = (id, x, y, w, h) => { const c = s("clipPath", { id }, defs); s("rect", { x, y, width: w, height: h }, c); return `url(#${id})`; };
+  const panels = {
+    plan: { x0: ox, y0: oy, w: pw, h: ph, px: (c, i) => xE(c.east[i]), py: (c, i) => yN(c.north[i]), clip: clip("cp-plan", ox, oy, pw, ph) },
+    ns: { x0: sx, y0: oy, w: zw, h: ph, px: (c, i) => xZ(c.depth[i]), py: (c, i) => yN(c.north[i]), clip: clip("cp-ns", sx, oy, zw, ph) },
+    ew: { x0: ox, y0: sy, w: pw, h: zw, px: (c, i) => xE(c.east[i]), py: (c, i) => yZ(c.depth[i]), clip: clip("cp-ew", ox, sy, pw, zw) },
+  };
+  for (const p of Object.values(panels)) s("rect", { x: p.x0, y: p.y0, width: p.w, height: p.h, fill: "var(--surface)" }, svg);
+  const tE = niceTicks(E[0], E[1], Math.max(3, Math.round(pw / 80)));
+  const tN = niceTicks(N[0], N[1], Math.max(3, Math.round(ph / 80)));
+  const tZ = niceTicks(Z[0], Z[1], Math.max(2, Math.round(zw / 60)));
+  const fE = tickFormat(tE), fN = tickFormat(tN), fZ = tickFormat(tZ);
+  const vline = (x, y0, y1) => s("line", { x1: x, x2: x, y1: y0, y2: y1, class: "gridline" }, svg);
+  const hline = (y, x0, x1) => s("line", { x1: x0, x2: x1, y1: y, y2: y, class: "gridline" }, svg);
+  for (const t of tE) { vline(xE(t), oy, oy + ph); vline(xE(t), sy, sy + zw); text(svg, xE(t), sy + zw + 14, fE(t), { "text-anchor": "middle" }); }
+  for (const t of tN) { hline(yN(t), ox, ox + pw); hline(yN(t), sx, sx + zw); text(svg, ox - 6, yN(t) + 3.5, fN(t), { "text-anchor": "end" }); }
+  for (const t of tZ) { vline(xZ(t), oy, oy + ph); hline(yZ(t), ox, ox + pw); text(svg, xZ(t), oy + ph + 14, fZ(t), { "text-anchor": "middle" }); text(svg, ox - 6, yZ(t) + 3.5, fZ(t), { "text-anchor": "end" }); }
+  text(svg, ox + pw / 2, sy + zw + 28, "east [km]", { "text-anchor": "middle" });
+  text(svg, sx + zw / 2, oy + ph + 28, "depth [km]", { "text-anchor": "middle" });
+  text(svg, ox - 32, oy + ph / 2, "north [km]", { "text-anchor": "middle", transform: `rotate(-90 ${ox - 32} ${oy + ph / 2})` });
+  text(svg, ox - 32, sy + zw / 2, "depth [km]", { "text-anchor": "middle", transform: `rotate(-90 ${ox - 32} ${sy + zw / 2})` });
+  if (vol.east) {
+    const vr = (p, x0, x1, y0, y1) => s("rect", { x: Math.min(x0, x1), y: Math.min(y0, y1), width: Math.abs(x1 - x0), height: Math.abs(y1 - y0), fill: "none", stroke: "var(--muted)", "stroke-width": 1, "clip-path": p.clip, "shape-rendering": "crispEdges" }, svg);
+    vr(panels.plan, xE(vol.east[0]), xE(vol.east[1]), yN(vol.north[0]), yN(vol.north[1]));
+    vr(panels.ns, xZ(vol.depth[0]), xZ(vol.depth[1]), yN(vol.north[0]), yN(vol.north[1]));
+    vr(panels.ew, xE(vol.east[0]), xE(vol.east[1]), yZ(vol.depth[0]), yZ(vol.depth[1]));
+  }
+
+  const refCoords = { east: refs.map((r) => r.east), north: refs.map((r) => r.north), depth: refs.map((r) => r.depth) };
+  const lostSet = new Set(D.available ? D.lost : []), addedSet = new Set(D.available ? D.added : []);
+  const hits = [];
+  for (const [pname, p] of Object.entries(panels)) {
+    const g = s("g", { "clip-path": p.clip }, svg);
+    for (const st of sets) {
+      const frag = document.createDocumentFragment();
+      for (const i of st.idx) {
+        const c = document.createElementNS(SVGNS, "circle");
+        const cx = p.px(st.d, i), cy = p.py(st.d, i);
+        c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", 2.6);
+        c.setAttribute("fill", st.color); c.setAttribute("fill-opacity", 0.55);
+        frag.append(c);
+        hits.push({ panel: pname, x: cx, y: cy, kind: st.id, i });
+      }
+      g.append(frag);
+    }
+    if (state.layers.shift && D.available) {
+      const frag = document.createDocumentFragment();
+      for (const pr of D.shown) {
+        const x1 = p.px(D.A, pr[0]), y1 = p.py(D.A, pr[0]), x2 = p.px(D.B, pr[1]), y2 = p.py(D.B, pr[1]);
+        if (Math.abs(x2 - x1) < 0.5 && Math.abs(y2 - y1) < 0.5) continue;
+        const l = document.createElementNS(SVGNS, "line");
+        l.setAttribute("x1", x1); l.setAttribute("y1", y1); l.setAttribute("x2", x2); l.setAttribute("y2", y2);
+        l.setAttribute("stroke", "var(--ink-2)"); l.setAttribute("stroke-width", 1); l.setAttribute("stroke-opacity", 0.7);
+        frag.append(l);
+      }
+      g.append(frag);
+      for (const st of sets) {
+        for (const i of st.id === "a" ? D.lost : D.added) {
+          s("circle", { cx: p.px(st.d, i), cy: p.py(st.d, i), r: 5.5, fill: "none", stroke: st.color, "stroke-width": 1.6 }, g);
+        }
+      }
+    }
+    refs.forEach((r, ri) => {
+      const cx = p.px(refCoords, ri), cy = p.py(refCoords, ri);
+      s("circle", { cx, cy, r: 2.5 + 1.3 * Math.max(0, r.magnitude ?? 0), fill: "none", stroke: "var(--ink)", "stroke-width": 1.2, "stroke-opacity": 0.8 }, g);
+      hits.push({ panel: pname, x: cx, y: cy, kind: "ref", i: ri });
+    });
+  }
+  for (const p of Object.values(panels)) s("rect", { x: p.x0, y: p.y0, width: p.w, height: p.h, class: "frame" }, svg);
+
+  const lg = s("g", { transform: `translate(${sx + 4}, ${sy + 6})` }, svg);
+  let ly = 0;
+  const lrow = (draw, label) => { draw(lg, 7, ly + 6); text(lg, 20, ly + 9.5, label, { fill: "var(--ink-2)" }); ly += 17; };
+  for (const st of sets) lrow((g, x, y) => s("circle", { cx: x, cy: y, r: 3.5, fill: st.color }, g), `${st.id.toUpperCase()} ${st.name}`);
+  if (state.layers.shift && D.available) {
+    lrow((g, x, y) => { s("line", { x1: x - 7, x2: x + 6, y1: y, y2: y, stroke: "var(--ink-2)", "stroke-width": 1 }, g); s("circle", { cx: x - 7, cy: y, r: 2.6, fill: "var(--a)" }, g); s("circle", { cx: x + 6, cy: y, r: 2.6, fill: "var(--b)" }, g); }, "shift of a pair, A → B");
+    lrow((g, x, y) => s("circle", { cx: x, cy: y, r: 5.5, fill: "none", stroke: "var(--a)", "stroke-width": 1.6 }, g), "lost: only in A");
+    lrow((g, x, y) => s("circle", { cx: x, cy: y, r: 5.5, fill: "none", stroke: "var(--b)", "stroke-width": 1.6 }, g), "new: only in B");
+  }
+  if (refs.length) lrow((g, x, y) => s("circle", { cx: x, cy: y, r: 5, fill: "none", stroke: "var(--ink)", "stroke-width": 1.2 }, g), "catalog, size ∝ Md");
+
+  const hlg = s("g", { "pointer-events": "none" }, svg);
+  const ring = (x, y, r, color) => s("circle", { cx: x, cy: y, r, fill: "none", stroke: color, "stroke-width": 2 }, hlg);
+  const drawFocus = (target) => {
+    hlg.replaceChildren();
+    if (!target) return;
+    for (const p of Object.values(panels)) {
+      if (target.kind === "ref") {
+        if (refs.length) ring(p.px(refCoords, target.i), p.py(refCoords, target.i), 9, "var(--ink)");
+        continue;
+      }
+      const cols = target.kind === "a" ? dA?.detections : dB?.detections;
+      if (!cols) continue;
+      const x1 = p.px(cols, target.i), y1 = p.py(cols, target.i);
+      ring(x1, y1, 7, target.kind === "a" ? "var(--a)" : "var(--b)");
+      const pr = D.available ? (target.kind === "a" ? D.pairA.get(target.i) : D.pairB.get(target.i)) : null;
+      if (pr) {
+        const other = target.kind === "a" ? { c: D.B, i: pr[1], color: "var(--b)" } : { c: D.A, i: pr[0], color: "var(--a)" };
+        const x2 = p.px(other.c, other.i), y2 = p.py(other.c, other.i);
+        s("line", { x1, y1, x2, y2, stroke: "var(--ink)", "stroke-width": 2 }, hlg);
+        ring(x2, y2, 7, other.color);
+      }
+    }
+  };
+  mapFocus = drawFocus;
+
+  const overlay = s("rect", { x: 0, y: 0, width: W, height: H, fill: "transparent" }, svg);
+  overlay.addEventListener("pointermove", (evt) => {
+    const r = svg.getBoundingClientRect();
+    const px = evt.clientX - r.left, py = evt.clientY - r.top;
+    const pname = Object.entries(panels).find(([, p]) => px >= p.x0 && px <= p.x0 + p.w && py >= p.y0 && py <= p.y0 + p.h)?.[0];
+    let best = null, bd = 18 * 18;
+    if (pname) for (const h of hits) {
+      if (h.panel !== pname) continue;
+      const d = (h.x - px) ** 2 + (h.y - py) ** 2;
+      if (d < bd) { bd = d; best = h; }
+    }
+    if (!best) { drawFocus(null); hideTip(); return; }
+    drawFocus(best);
+    if (best.kind === "ref") {
+      const ev = refs[best.i];
+      showTip(evt, `catalog ${fullTime(ev.time)}`, [{ label: "Md", value: fmt(ev.magnitude, "magnitude") }, { label: "depth", value: `${fmt(ev.depth, "_m")} km` }]);
+    } else {
+      showTip(evt, `${best.kind.toUpperCase()} ${best.kind === "a" ? state.a : state.b}`, detectionRows(best.kind, best.i));
+    }
+  });
+  overlay.addEventListener("pointerleave", () => { drawFocus(null); hideTip(); });
+  box.append(svg);
+}
+
+function detectionRows(kind, i) {
+  const D = state.derived;
+  const d = (kind === "a" ? D.dA : D.dB).detections;
+  const rows = [
+    { label: "origin time", value: fullTime(d.time[i]).slice(11) },
+    { label: "depth", color: kind === "a" ? "var(--a)" : "var(--b)", value: `${fmt(d.depth[i], "_m")} km` },
+    { label: "picks · stations", value: `${d.n_picks[i] ?? "–"} · ${d.n_stations[i] ?? "–"}` },
+    { label: "semblance", value: fmt(d.semblance[i], "semblance") },
+    { label: "RMS", value: `${fmt(d.rms[i], "rms")} s` },
+    { label: "magnitude", value: fmt(d.magnitude[i], "magnitude") },
+  ];
+  if (D.available) {
+    const pr = kind === "a" ? D.pairA.get(i) : D.pairB.get(i);
+    if (!pr) rows.push({ label: kind === "a" ? "in B" : "in A", value: kind === "a" ? "lost" : "new" });
+    else {
+      const o = kind === "a" ? D.B : D.A, j = kind === "a" ? pr[1] : pr[0];
+      rows.push({ label: "shift Δh · Δz", value: `${fmt(pr[3], "_m")} · ${fmt(pr[4], "_m", true)} m` });
+      rows.push({ label: "Δt (B − A)", value: `${fmt(pr[2], "time_shift", true)} s` });
+      rows.push({ label: `picks ${kind === "a" ? "in B" : "in A"}`, color: kind === "a" ? "var(--b)" : "var(--a)", value: `${o.n_picks[j] ?? "–"}` });
+    }
+  }
+  return rows;
+}
+
+function renderDeltas(D) {
+  const box = $("deltas");
+  box.replaceChildren();
+  if (!D.available) { box.append(el("div", { class: "empty" }, D.same ? "A and B are the same run." : "Detections of A or B not available.")); return; }
+  const one = (values) => [{ id: "pairs", name: `${D.shown.length} pairs`, color: "var(--ink-2)", values }];
+  drawHist(box, { label: "Horizontal shift", unit: "m", key: "_m" }, one(D.dh));
+  drawHist(box, { label: "Depth shift", unit: "m", key: "_m", signed: true }, one(D.dz));
+  drawHist(box, { label: "Origin time shift", unit: "s", key: "time_shift", signed: true }, one(D.dt));
+  drawHist(box, { label: "Picks", unit: "", key: "n_", signed: true, integer: true }, one(D.dPicks));
+  drawHist(box, { label: "Residual RMS", unit: "s", key: "rms", signed: true }, one(D.dRms));
+  drawHist(box, { label: "Semblance", unit: "", key: "semblance", signed: true }, one(D.dSemblance));
+}
+
+// ---------------------------------------------------------------- changed detections
+
+function renderChanged() {
+  const D = state.derived;
+  const tabs = $("changed-tabs");
+  const box = $("changed");
+  box.replaceChildren();
+  if (!D.available) {
+    tabs.replaceChildren();
+    $("changed-sub").textContent = D.same ? "A and B are the same run." : "Detections of A or B not available.";
+    return;
+  }
+  const largest = [...D.shown].sort((x, y) => Math.hypot(y[3], y[4]) - Math.hypot(x[3], x[4])).slice(0, 50);
+  const tabDefs = [["lost", `lost ${D.lost.length}`], ["new", `new ${D.added.length}`], ["shifts", "largest shifts"]];
+  tabs.replaceChildren(...tabDefs.map(([k, label]) => el("button", { class: "btn", "aria-pressed": String(state.changedTab === k), onclick: () => { state.changedTab = k; renderChanged(); } }, label)));
+  $("changed-sub").textContent = {
+    lost: `Detections of A with at least ${state.minPicks} picks and no pair in B, by picks.`,
+    new: `Detections of B with at least ${state.minPicks} picks and no pair in A, by picks.`,
+    shifts: "The 50 pairs that moved the most in 3D.",
+  }[state.changedTab];
+
+  let head, rows;
+  if (state.changedTab === "shifts") {
+    head = ["origin time A", "Δh m", "Δz m", "Δt s", "picks A → B", "RMS A → B", "sembl. A → B"];
+    rows = largest.map((pr) => ({
+      focus: { kind: "a", i: pr[0] },
+      cells: [clockTime(D.A.time[pr[0]]), fmt(pr[3], "_m"), fmt(pr[4], "_m", true), fmt(pr[2], "time_shift", true),
+        `${D.A.n_picks[pr[0]] ?? "–"} → ${D.B.n_picks[pr[1]] ?? "–"}`,
+        `${fmt(D.A.rms[pr[0]], "rms")} → ${fmt(D.B.rms[pr[1]], "rms")}`,
+        `${fmt(D.A.semblance[pr[0]], "semblance")} → ${fmt(D.B.semblance[pr[1]], "semblance")}`],
+    }));
+  } else {
+    const kind = state.changedTab === "lost" ? "a" : "b";
+    const cols = kind === "a" ? D.A : D.B, other = kind === "a" ? D.B : D.A;
+    const otherTimes = other.time.map((t) => Date.parse(t)).sort((x, y) => x - y);
+    const nearest = (t) => {
+      let lo = 0, hi = otherTimes.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (otherTimes[mid] < t) lo = mid + 1; else hi = mid; }
+      const c = [otherTimes[lo - 1], otherTimes[lo]].filter(isNum).map((x) => (x - t) / 1000);
+      return c.length ? c.reduce((x, y) => (Math.abs(y) < Math.abs(x) ? y : x)) : null;
+    };
+    const idx = [...(kind === "a" ? D.lost : D.added)].sort((x, y) => (cols.n_picks[y] ?? 0) - (cols.n_picks[x] ?? 0));
+    head = ["origin time", "picks", "sembl.", "RMS s", "depth km", "mag.", `nearest in ${kind === "a" ? "B" : "A"}`];
+    rows = idx.map((i) => ({
+      focus: { kind, i },
+      cells: [clockTime(cols.time[i]), String(cols.n_picks[i] ?? "–"), fmt(cols.semblance[i], "semblance"), fmt(cols.rms[i], "rms"),
+        fmt(cols.depth[i], "_m"), fmt(cols.magnitude[i], "magnitude"), (() => { const n = nearest(Date.parse(cols.time[i])); return isNum(n) ? `${fmt(n, "_s", true)} s` : "–"; })()],
+    }));
+  }
+  if (!rows.length) { box.append(el("div", { class: "empty" }, "None.")); return; }
+  box.append(el("table", {},
+    el("thead", {}, el("tr", {}, ...head.map((h, k) => el("th", { class: k ? "r" : "" }, h)))),
+    el("tbody", {}, ...rows.map((r) => el("tr", { onpointerenter: () => focus(r.focus), onpointerleave: () => focus(null) },
+      ...r.cells.map((c, k) => el("td", { class: k ? "r num" : "num" }, c)))))));
+}
+
+// ---------------------------------------------------------------- timeline
+
+function renderTimeline() {
+  const D = state.derived;
+  const box = $("timeline");
+  box.replaceChildren();
+  const { dA, dB } = D;
+  const series = [];
+  if (dA?.has_detections) series.push({ id: "A", name: state.a, color: "var(--a)", t: filteredIdx(dA).map((i) => Date.parse(dA.detections.time[i])).sort((x, y) => x - y) });
+  if (dB?.has_detections && !D.same) series.push({ id: "B", name: state.b, color: "var(--b)", t: filteredIdx(dB).map((i) => Date.parse(dB.detections.time[i])).sort((x, y) => x - y) });
+  $("time-sub").textContent = `Cumulative count of the detections with at least ${state.minPicks} picks; below, the detections lost from A and new in B per time bin.`;
+  if (!series.length || !series.some((sr) => sr.t.length)) { box.append(el("div", { class: "empty" }, "No detections.")); return; }
+  const all = series.flatMap((sr) => sr.t);
+  const t0 = minOf(all), t1 = maxOf(all) + 1;
+  const W = Math.max(280, box.clientWidth || 480);
+  const m = { l: 44, r: 12, t: 14 };
+  const H1 = 190, gap = 26, H2 = D.available ? 96 : 0, axisH = 30;
+  const H = m.t + H1 + (H2 ? gap + H2 : 0) + axisH;
+  const x = scale(t0, t1, m.l, W - m.r);
+  const maxN = Math.max(...series.map((sr) => sr.t.length));
+  const yT = niceTicks(0, maxN, 4);
+  const y = scale(0, Math.max(maxN, yT[yT.length - 1]), m.t + H1, m.t);
+  const svg = s("svg", { width: W, height: H, role: "img", "aria-label": "Cumulative detections of A and B over time, and lost and new detections per time bin" });
+  for (const t of yT) { s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t === 0 ? "axisline" : "gridline" }, svg); text(svg, m.l - 6, y(t) + 3.5, String(t), { "text-anchor": "end" }); }
+  for (const sr of series) {
+    let d = `M${x(t0)},${y(0)}`;
+    sr.t.forEach((t, k) => { d += `H${x(t)}V${y(k + 1)}`; });
+    d += `H${x(t1)}`;
+    s("path", { d, fill: "none", stroke: sr.color, "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  }
+  text(svg, m.l + 4, m.t + 10, series.map((sr) => `${sr.id} ${sr.t.length}`).join("   "), { fill: "var(--ink-2)" });
+
+  // lost (down) and new (up) per time bin
+  const hours = (t1 - t0) / 3.6e6;
+  const binH = [0.25, 0.5, 1, 2, 3, 6, 12, 24, 48, 168].find((b) => hours / b <= 60) || 168;
+  const bin = binH * 3.6e6;
+  const b0 = Math.floor(t0 / bin) * bin;
+  const nb = Math.ceil((t1 - b0) / bin);
+  const lostC = new Array(nb).fill(0), newC = new Array(nb).fill(0);
+  let y2 = null;
+  if (H2) {
+    for (const i of D.lost) lostC[Math.min(nb - 1, Math.floor((Date.parse(D.A.time[i]) - b0) / bin))] += 1;
+    for (const i of D.added) newC[Math.min(nb - 1, Math.floor((Date.parse(D.B.time[i]) - b0) / bin))] += 1;
+    const top = m.t + H1 + gap, mid = top + H2 / 2;
+    const maxC = Math.max(1, ...lostC, ...newC);
+    y2 = scale(0, maxC, mid, top);
+    const yNeg = scale(0, maxC, mid, top + H2);
+    s("line", { x1: m.l, x2: W - m.r, y1: mid, y2: mid, class: "axisline" }, svg);
+    text(svg, m.l - 6, top + 8, `+${maxC}`, { "text-anchor": "end" });
+    text(svg, m.l - 6, top + H2, `−${maxC}`, { "text-anchor": "end" });
+    text(svg, W - m.r, top - 6, `new in B ↑ · lost from A ↓ · per ${binH >= 1 ? binH + " h" : binH * 60 + " min"}`, { "text-anchor": "end", fill: "var(--ink-2)" });
+    const bw = Math.max(1, x(b0 + bin) - x(b0) - 2);
+    for (let k = 0; k < nb; k++) {
+      const xx = x(b0 + k * bin) + 1;
+      if (newC[k]) s("rect", { x: xx, y: y2(newC[k]), width: bw, height: mid - y2(newC[k]), rx: Math.min(2, bw / 2), fill: "var(--b)" }, svg);
+      if (lostC[k]) s("rect", { x: xx, y: mid, width: bw, height: yNeg(lostC[k]) - mid, rx: Math.min(2, bw / 2), fill: "var(--a)" }, svg);
+    }
+  }
+  const hoursTicks = hours > 48 ? 24 : hours > 12 ? 3 : hours > 4 ? 1 : 0.25;
+  for (let t = Math.ceil(t0 / (hoursTicks * 3.6e6)) * hoursTicks * 3.6e6; t <= t1; t += hoursTicks * 3.6e6) {
+    text(svg, x(t), H - axisH + 16, new Date(t).toISOString().slice(hoursTicks >= 24 ? 5 : 11, hoursTicks >= 24 ? 10 : 16), { "text-anchor": "middle" });
+  }
+  text(svg, W - m.r, H - 2, "UTC", { "text-anchor": "end" });
+
+  const cross = s("line", { y1: m.t, y2: H - axisH, stroke: "var(--axis)", visibility: "hidden" }, svg);
+  const hit = s("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - axisH - m.t, fill: "transparent" }, svg);
+  const countBefore = (arr, t) => { let lo = 0, hi = arr.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (arr[mid] <= t) lo = mid + 1; else hi = mid; } return lo; };
+  hit.addEventListener("pointermove", (evt) => {
+    const r = svg.getBoundingClientRect();
+    const px = evt.clientX - r.left;
+    const t = x.invert(px);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.setAttribute("visibility", "visible");
+    const rows = series.map((sr) => ({ label: `${sr.id} ${sr.name}, cumulative`, color: sr.color, value: String(countBefore(sr.t, t)) }));
+    let title = new Date(t).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+    if (H2) {
+      const k = Math.max(0, Math.min(nb - 1, Math.floor((t - b0) / bin)));
+      const s0 = new Date(b0 + k * bin).toISOString().slice(11, 16), s1 = new Date(b0 + (k + 1) * bin).toISOString().slice(11, 16);
+      rows.push({ label: `new in B, ${s0}–${s1}`, color: "var(--b)", value: String(newC[k]) });
+      rows.push({ label: `lost from A, ${s0}–${s1}`, color: "var(--a)", value: String(lostC[k]) });
+    }
+    showTip(evt, title, rows);
+  });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+  box.append(el("div", { class: "legend", style: "margin-bottom:6px" },
+    ...series.map((sr) => el("span", {}, el("span", { class: `key ${sr.id.toLowerCase()}` }), `${sr.id} ${sr.name}`))), svg);
+}
+
+// ---------------------------------------------------------------- quality distributions
+
+const DISTS = [
+  { col: "n_picks", label: "Picks per event", unit: "", key: "n_", integer: true },
+  { col: "rms", label: "Residual RMS", unit: "s", key: "rms" },
+  { col: "semblance", label: "Semblance", unit: "", key: "semblance" },
+  { col: "depth", label: "Depth", unit: "km", key: "_m" },
+  { col: "magnitude", label: "Magnitude", unit: "", key: "magnitude" },
+  { col: "uncertainty_horizontal", label: "Horizontal uncertainty", unit: "m", key: "n_" },
+  { col: "uncertainty_vertical", label: "Vertical uncertainty", unit: "m", key: "n_" },
+  { col: "n_stations", label: "Stations per event", unit: "", key: "n_", integer: true },
+];
+
+function renderQuality() {
+  const D = state.derived;
+  const box = $("dists");
+  box.replaceChildren();
+  $("dist-sub").textContent = `Distributions of the detections with at least ${state.minPicks} picks in A and B.`;
+  $("dist-legend").replaceChildren(
+    el("span", {}, el("span", { class: "key a" }), `A ${state.a}`),
+    D.same ? null : el("span", {}, el("span", { class: "key b" }), `B ${state.b}`),
+    el("span", { class: "muted" }, "the tick marks the median"));
+  const series = [];
+  if (D.dA?.has_detections) series.push({ id: "A", name: state.a, color: "var(--a)", d: D.dA.detections, idx: filteredIdx(D.dA) });
+  if (D.dB?.has_detections && !D.same) series.push({ id: "B", name: state.b, color: "var(--b)", d: D.dB.detections, idx: filteredIdx(D.dB) });
+  if (!series.length) { box.append(el("div", { class: "empty" }, "No detections available.")); return; }
+  for (const spec of DISTS) {
+    drawHist(box, spec, series.map((sr) => ({ id: sr.id, name: sr.name, color: sr.color, values: sr.idx.map((i) => sr.d[spec.col][i]).filter(isNum) })));
+  }
+}
+
+function drawHist(box, spec, series) {
+  const wrap = el("div", { class: "multiple" });
+  const meds = series.map((sr) => quantile(sr.values, 0.5));
+  wrap.append(el("h3", {}, spec.label + (spec.unit ? ` [${spec.unit}]` : ""),
+    el("span", {}, series.map((sr, k) => `${series.length > 1 ? sr.id + " " : "median "}${fmt(meds[k], spec.key, spec.signed)}`).join("  "))));
+  box.append(wrap);
+  const all = series.flatMap((sr) => sr.values);
+  if (!all.length) { wrap.append(el("div", { class: "empty" }, "no values")); return; }
+  let lo, hi, nb, bw;
+  if (spec.integer) {
+    lo = minOf(all) - 0.5; hi = maxOf(all) + 0.5; bw = 1; nb = Math.max(1, Math.round(hi - lo));
+    if (nb > 60) { nb = 60; bw = (hi - lo) / nb; }
+  } else {
+    lo = spec.signed ? quantile(all, 0.01) : minOf(all);
+    hi = quantile(all, spec.signed ? 0.99 : 0.995);
+    if (spec.signed) { const a = Math.max(Math.abs(lo), Math.abs(hi)) || 1; lo = -a; hi = a; }
+    if (hi <= lo) hi = lo + 1;
+    nb = 28; bw = (hi - lo) / nb;
+  }
+  const counts = series.map((sr) => {
+    const c = new Array(nb).fill(0);
+    for (const v of sr.values) c[Math.max(0, Math.min(nb - 1, Math.floor((v - lo) / bw)))] += 1;
+    return c;
+  });
+  const W = Math.max(200, wrap.clientWidth || 300), H = 120;
+  const m = { l: 34, r: 6, t: 6, b: 20 };
+  const maxC = Math.max(1, maxOf(counts.flat()));
+  const x = scale(lo, lo + nb * bw, m.l, W - m.r);
+  const yT = niceTicks(0, maxC, 3).filter((t) => Number.isInteger(t));
+  const y = scale(0, Math.max(maxC, yT[yT.length - 1] || 1), H - m.b, m.t);
+  const svg = s("svg", { width: W, height: H, role: "img", "aria-label": `${spec.label} histogram` });
+  for (const t of yT) { s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t === 0 ? "axisline" : "gridline" }, svg); text(svg, m.l - 6, y(t) + 3.5, String(t), { "text-anchor": "end" }); }
+  let xT = niceTicks(lo, lo + nb * bw, Math.max(2, Math.floor((W - m.l - m.r) / 64)));
+  if (spec.integer) xT = xT.filter((t) => Number.isInteger(t));
+  const fx = tickFormat(xT.length > 1 ? xT : [0, 1]);
+  for (const t of xT) if (x(t) >= m.l - 1 && x(t) <= W - m.r + 1) text(svg, x(t), H - 5, fx(t), { "text-anchor": "middle" });
+  if (spec.signed && lo < 0 && lo + nb * bw > 0) s("line", { x1: x(0), x2: x(0), y1: m.t, y2: H - m.b, class: "axisline" }, svg);
+  counts.forEach((c, k) => {
+    let d = `M${x(lo)},${y(0)}`;
+    c.forEach((v, b) => { d += `L${x(lo + b * bw)},${y(v)}L${x(lo + (b + 1) * bw)},${y(v)}`; });
+    d += `L${x(lo + nb * bw)},${y(0)}`;
+    s("path", { d, fill: series[k].color, "fill-opacity": 0.08, stroke: series[k].color, "stroke-width": 1.6, "stroke-linejoin": "round" }, svg);
+    if (isNum(meds[k])) s("line", { x1: x(meds[k]), x2: x(meds[k]), y1: H - m.b, y2: H - m.b + 5, stroke: series[k].color, "stroke-width": 2 }, svg);
+  });
+  const hl = s("rect", { y: m.t, height: H - m.t - m.b, fill: "var(--ink)", opacity: 0.06, visibility: "hidden" }, svg);
+  const hit = s("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" }, svg);
+  hit.addEventListener("pointermove", (evt) => {
+    const r = svg.getBoundingClientRect();
+    const b = Math.max(0, Math.min(nb - 1, Math.floor((x.invert(evt.clientX - r.left) - lo) / bw)));
+    hl.setAttribute("x", x(lo + b * bw)); hl.setAttribute("width", Math.max(1, x(lo + bw) - x(lo))); hl.setAttribute("visibility", "visible");
+    const range = spec.integer && bw === 1 ? `${Math.round(lo + b + 0.5)}` : `${fmt(lo + b * bw, spec.key)} – ${fmt(lo + (b + 1) * bw, spec.key)}`;
+    const edge = spec.integer ? "" : b === nb - 1 ? " and above" : b === 0 && spec.signed ? " and below" : "";
+    showTip(evt, `${spec.label} ${range}${spec.unit ? " " + spec.unit : ""}${edge}`,
+      series.map((sr, k) => ({ label: series.length > 1 ? `${sr.id} ${sr.name}` : sr.name, color: sr.color, value: String(counts[k][b]) })));
+  });
+  hit.addEventListener("pointerleave", () => { hl.setAttribute("visibility", "hidden"); hideTip(); });
+  wrap.append(svg);
+}
+
+// ---------------------------------------------------------------- run metrics
+
+function tolBar(row) {
+  // Change relative to the tolerance: left is better, right is worse.
+  const w = 120, h = 16, mid = w / 2, lim = w / 4;
+  const svg = s("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}`, "aria-hidden": "true" });
+  s("rect", { x: mid - lim, y: 4, width: 2 * lim, height: h - 8, rx: 2, fill: "var(--mid)" }, svg);
+  s("line", { x1: mid, x2: mid, y1: 2, y2: h - 2, class: "axisline" }, svg);
+  if (row.limit != null && isNum(row.delta)) {
+    const worse = row.better === "higher" ? -row.delta : row.delta;
+    const norm = row.limit > 0 ? worse / row.limit : worse === 0 ? 0 : Math.sign(worse) * 3;
+    const xx = mid + Math.max(-2, Math.min(2, norm)) * lim;
+    const color = row.status === "regression" ? "var(--bad)" : row.status === "worse" ? "var(--warn)" : row.status === "better" ? "var(--good)" : "var(--ink-2)";
+    if (Math.abs(xx - mid) > 0.5) s("line", { x1: mid, x2: xx, y1: h / 2, y2: h / 2, stroke: color, "stroke-width": 2 }, svg);
+    s("circle", { cx: xx, cy: h / 2, r: 4, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, svg);
+  }
+  return svg;
+}
+
+function renderMetrics() {
+  const box = $("metrics");
+  box.replaceChildren();
+  if (!state.compare) return;
+  const table = el("table", {},
+    el("thead", {}, el("tr", {},
+      el("th", {}, "metric"), el("th", { class: "r" }, el("span", { class: "key a" }), " A"), el("th", { class: "r" }, el("span", { class: "key b" }), " B"),
+      el("th", { class: "r" }, "Δ"), el("th", { class: "r" }, "Δ%"), el("th", {}, "better ← tol → worse"), el("th", {}, "status"))));
+  const body = el("tbody");
+  let group = null;
+  for (const row of state.compare.rows) {
+    const g = row.key.split(".")[0];
+    if (g !== group) { group = g; body.append(el("tr", { class: "group" }, el("td", { colspan: 7 }, GROUPS[g] || g))); }
+    const st = row.status || (row.better && row.gated && isNum(row.delta) ? "ok" : "");
+    const tolTitle = row.limit != null ? `tolerance ±${fmt(row.limit, row.key)}${row.gated ? "" : " (not gated)"}` : "not gated";
+    body.append(el("tr", { class: row.better ? "" : "dim" },
+      el("td", {}, row.label),
+      el("td", { class: "r num" }, fmt(row.reference, row.key)),
+      el("td", { class: "r num" }, fmt(row.current, row.key)),
+      el("td", { class: "r num" }, isNum(row.delta) ? fmt(row.delta, row.key, true) : "–"),
+      el("td", { class: "r num muted" }, fmtPct(row.delta, row.reference)),
+      el("td", { title: tolTitle }, row.better ? tolBar(row) : null),
+      el("td", {}, st ? statusEl(st) : el("span", { class: "muted" }, "info"))));
+  }
+  table.append(body);
+  box.append(table);
+}
+
+// ---------------------------------------------------------------- trend
+
+function trendOptions() {
+  const per = state.overview.metric_specs.map((m) => ({ key: m.key, label: m.label, get: (r) => get(r.metrics, m.key), base: true }));
+  const vs = (state.overview.association_specs || []).map((m) => {
+    const k = m.key.split(".")[1];
+    return { key: `vs.${k}`, label: `vs baseline: ${m.label}`, get: (r) => r.vs_baseline?.association?.[k], base: false, fmtKey: k };
+  });
+  return [...vs, ...per];
+}
+
+function renderTrend() {
+  renderTrendChart("trend", "sel-trend");
+  renderTrendChart("trend2", "sel-trend2");
+}
+
+function renderTrendChart(boxId, selId) {
+  const sel = $(selId);
+  const options = trendOptions();
+  if (!sel.options.length) {
+    sel.replaceChildren(
+      el("optgroup", { label: "against the baseline" }, ...options.filter((o) => !o.base).map((o) => el("option", { value: o.key }, o.label.replace("vs baseline: ", "")))),
+      el("optgroup", { label: "run metrics" }, ...options.filter((o) => o.base).map((o) => el("option", { value: o.key }, o.label))));
+    sel.addEventListener("change", () => { state.trendMetrics[boxId] = sel.value; renderTrendChart(boxId, selId); });
+  }
+  sel.value = state.trendMetrics[boxId];
+  const opt = options.find((o) => o.key === state.trendMetrics[boxId]) || options[0];
+  const key = opt.fmtKey || opt.key;
+  const box = $(boxId);
+  box.replaceChildren();
+  const runs = selectableRuns().filter((r) => r.name !== "baseline")
+    .sort((x, y) => (x.metrics.created || "").localeCompare(y.metrics.created || ""));
+  const pts = runs.map((r) => ({ name: r.name, v: opt.get(r), created: r.metrics.created, env: r.metrics.environment || {} })).filter((p) => isNum(p.v));
+  const base = opt.base ? get(runByName("baseline")?.metrics, opt.key) : null;
+  if (!pts.length) { box.append(el("div", { class: "empty" }, "No runs with this metric.")); return; }
+
+  const W = Math.max(280, box.clientWidth || 480), H = 220;
+  const m = { l: 52, r: 16, t: 14, b: 30 };
+  const vals = pts.map((p) => p.v).concat(isNum(base) ? [base] : []);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.15 || Math.abs(hi) * 0.05 || 1;
+  lo -= pad; hi += pad;
+  if (Math.min(...vals) >= 0 && lo < 0) lo = 0;
+  const ticks = niceTicks(lo, hi, 4);
+  lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const x = scale(-0.5, Math.max(pts.length - 0.5, 0.5), m.l, W - m.r);
+  const y = scale(lo, hi, H - m.b, m.t);
+  const svg = s("svg", { width: W, height: H, role: "img", "aria-label": `${opt.label} across runs` });
+  const tf = tickFormat(ticks);
+  for (const t of ticks) { s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: "gridline" }, svg); text(svg, m.l - 8, y(t) + 3.5, /fraction$/.test(key) ? `${Math.round(t * 100)}%` : tf(t), { "text-anchor": "end" }); }
+  s("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: "axisline" }, svg);
+  if (isNum(base)) {
+    s("line", { x1: m.l, x2: W - m.r, y1: y(base), y2: y(base), stroke: "var(--ink-2)", "stroke-width": 1, "shape-rendering": "crispEdges" }, svg);
+    text(svg, W - m.r, y(base) - 5, `baseline ${fmt(base, key)}`, { "text-anchor": "end", fill: "var(--ink-2)" });
+  }
+  const step = Math.max(1, Math.ceil(pts.length / Math.max(1, Math.floor((W - m.l - m.r) / 70))));
+  pts.forEach((p, k) => { if (k % step === 0 || k === pts.length - 1) text(svg, x(k), H - m.b + 16, p.name.length > 12 ? p.name.slice(0, 11) + "…" : p.name, { "text-anchor": "middle" }); });
+  s("path", { d: pts.map((p, k) => `${k ? "L" : "M"}${x(k)},${y(p.v)}`).join(""), fill: "none", stroke: "var(--muted)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  pts.forEach((p, k) => {
+    const isA = p.name === state.a, isB = p.name === state.b;
+    s("circle", { cx: x(k), cy: y(p.v), r: isA || isB ? 5 : 3.5, fill: isB ? "var(--b)" : isA ? "var(--a)" : "var(--muted)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+  });
+  const cross = s("line", { y1: m.t, y2: H - m.b, stroke: "var(--axis)", visibility: "hidden" }, svg);
+  const hit = s("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent", style: "cursor:pointer" }, svg);
+  const nearest = (evt) => { const r = svg.getBoundingClientRect(); return Math.max(0, Math.min(pts.length - 1, Math.round(x.invert(evt.clientX - r.left)))); };
+  hit.addEventListener("pointermove", (evt) => {
+    const k = nearest(evt), p = pts[k];
+    cross.setAttribute("x1", x(k)); cross.setAttribute("x2", x(k)); cross.setAttribute("visibility", "visible");
+    const rows = [{ label: "value", value: fmt(p.v, key) }];
+    if (isNum(base)) rows.push({ label: "vs baseline", value: `${fmt(p.v - base, key, true)} ${fmtPct(p.v - base, base)}` });
+    rows.push({ label: "qseek", value: (p.env.qseek_commit || "?").slice(0, 8) + (p.env.qseek_dirty ? "+" : "") });
+    rows.push({ label: "created", value: shortTime(p.created) });
+    showTip(evt, `${p.name} · click for B, shift-click for A`, rows);
+  });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+  hit.addEventListener("click", (evt) => { const p = pts[nearest(evt)]; if (evt.shiftKey) state.a = p.name; else state.b = p.name; hideTip(); loadSelection(); });
+  box.append(svg);
+  $("trend-sub").textContent = `${pts.length} run${pts.length > 1 ? "s" : ""} in order of creation. "Against the baseline" pairs each run with the baseline; for run metrics the hairline is the baseline. Click a run for B, shift-click for A.`;
+}
+
+// ---------------------------------------------------------------- reference catalog
+
+const REF_METRICS = {
+  offset_m: { label: "epicenter offset", unit: "m", key: "_m", get: (m) => m.offset_m },
+  dz_m: { label: "depth offset dz", unit: "m", key: "_m", get: (m) => m.dz_m },
+  dt: { label: "origin time offset", unit: "s", key: "time_offset", get: (m) => m.dt },
+};
+
+function renderReference() {
+  const dA = state.details[state.a], dB = state.details[state.b];
+  $("ref-controls").replaceChildren(...Object.entries(REF_METRICS).map(([k, v]) =>
+    el("button", { class: "btn", "aria-pressed": String(state.refMetric === k), onclick: () => { state.refMetric = k; renderReference(); } }, v.label)));
+  const refsA = dA?.reference || [], refsB = state.a === state.b ? [] : dB?.reference || [];
+  const n = Math.max(refsA.length, refsB.length);
+  const mA = runByName(state.a)?.metrics?.reference || {}, mB = runByName(state.b)?.metrics?.reference || {};
+  $("ref-sub").textContent = n
+    ? `A coarse, independent check: the ${n} events of ${mA.catalog || "the reference catalog"}, matched within ${mB.max_time_difference_s ?? "?"} s origin time. A matched ${mA.n_matched ?? "–"}, B ${mB.n_matched ?? "–"}. The catalog lists only the larger events and has its own location errors.`
+    : "No reference catalog for this example.";
+  renderDumbbell(refsA, refsB);
+  renderRecall(mA, mB);
+  renderRefTable(refsA, refsB);
+}
+
+function renderDumbbell(refsA, refsB) {
+  const box = $("dumbbell");
+  box.replaceChildren();
+  const spec = REF_METRICS[state.refMetric];
+  const events = (refsB.length ? refsB : refsA).map((ev, i) => ({
+    i, ev, a: refsA[i]?.match ? spec.get(refsA[i].match) : null, b: refsB[i]?.match ? spec.get(refsB[i].match) : null,
+  }));
+  if (!events.length) return;
+  const W = Math.max(300, box.clientWidth || 640), H = 220;
+  const m = { l: 56, r: 12, t: 22, b: 34 };
+  const vals = events.flatMap((e) => [e.a, e.b]).filter(isNum);
+  let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const ticks = niceTicks(lo, hi, 5);
+  lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const x = scale(-0.5, events.length - 0.5, m.l, W - m.r);
+  const y = scale(lo, hi, H - m.b, m.t);
+  const svg = s("svg", { width: W, height: H, role: "img", "aria-label": `${spec.label} per catalog event, A and B` });
+  const tf = tickFormat(ticks);
+  for (const t of ticks) { s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t === 0 ? "axisline" : "gridline" }, svg); text(svg, m.l - 8, y(t) + 3.5, tf(t), { "text-anchor": "end" }); }
+  text(svg, m.l - 8, m.t - 10, spec.unit, { "text-anchor": "end" });
+  const every = Math.max(1, Math.ceil(events.length / Math.floor((W - m.l - m.r) / 46)));
+  events.forEach((e, k) => { if (k % every === 0) text(svg, x(k), H - m.b + 16, clockTime(e.ev.time).slice(0, 5), { "text-anchor": "middle" }); });
+  text(svg, W - m.r, H - 4, "origin time, UTC", { "text-anchor": "end" });
+  for (const e of events) {
+    const cx = x(e.i);
+    if (isNum(e.a) && isNum(e.b)) s("line", { x1: cx, x2: cx, y1: y(e.a), y2: y(e.b), stroke: "var(--axis)", "stroke-width": 2 }, svg);
+    if (isNum(e.a)) s("circle", { cx, cy: y(e.a), r: 3.5, fill: "var(--a)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    if (isNum(e.b)) s("circle", { cx, cy: y(e.b), r: 3.5, fill: "var(--b)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    if (!isNum(e.a) && refsA.length) text(svg, cx, m.t - 2, "×", { "text-anchor": "middle", fill: "var(--a)", "font-size": 12 });
+    if (!isNum(e.b) && refsB.length) text(svg, cx, m.t + 8, "×", { "text-anchor": "middle", fill: "var(--b)", "font-size": 12 });
+  }
+  const bw = (W - m.l - m.r) / events.length;
+  const hl = s("rect", { y: m.t, height: H - m.t - m.b, fill: "var(--ink)", opacity: 0.06, visibility: "hidden" }, svg);
+  const hit = s("rect", { x: m.l, y: 0, width: W - m.l - m.r, height: H - m.b, fill: "transparent" }, svg);
+  hit.addEventListener("pointermove", (evt) => {
+    const r = svg.getBoundingClientRect();
+    const k = Math.max(0, Math.min(events.length - 1, Math.round(x.invert(evt.clientX - r.left))));
+    const e = events[k];
+    hl.setAttribute("x", x(k) - bw / 2); hl.setAttribute("width", bw); hl.setAttribute("visibility", "visible");
+    const sg = state.refMetric !== "offset_m";
+    const rows = [
+      { label: "A", color: "var(--a)", value: isNum(e.a) ? `${fmt(e.a, spec.key, sg)} ${spec.unit}` : "missed" },
+      { label: "B", color: "var(--b)", value: isNum(e.b) ? `${fmt(e.b, spec.key, sg)} ${spec.unit}` : "missed" },
+    ];
+    if (isNum(e.a) && isNum(e.b)) rows.push({ label: "B − A", value: `${fmt(e.b - e.a, spec.key, true)} ${spec.unit}` });
+    showTip(evt, `${shortTime(e.ev.time)} · Md ${fmt(e.ev.magnitude, "magnitude")} · ${fmt(e.ev.depth, "_m")} km`, rows);
+  });
+  hit.addEventListener("pointerleave", () => { hl.setAttribute("visibility", "hidden"); hideTip(); });
+  box.append(el("div", { class: "legend", style: "margin-bottom:6px" },
+    el("span", {}, el("span", { class: "key a" }), `A ${state.a}`),
+    refsB.length ? el("span", {}, el("span", { class: "key b" }), `B ${state.b}`) : null,
+    el("span", { class: "muted" }, `${spec.label} per catalog event · × missed`)), svg);
+}
+
+function renderRecall(mA, mB) {
+  const box = $("recall");
+  box.replaceChildren(el("div", { class: "legend", style: "margin-bottom:8px" }, el("span", { class: "ink2" }, "Recall by catalog magnitude"), el("span", { class: "muted" }, "A · B / events")));
+  const ra = mA.recall_by_magnitude || {}, rb = state.a === state.b ? {} : mB.recall_by_magnitude || {};
+  const labels = [...new Set([...Object.keys(ra), ...Object.keys(rb)])].sort();
+  if (!labels.length) { box.append(el("div", { class: "empty" }, "–")); return; }
+  const parse = (v) => { if (!v) return null; const [f, t] = v.split("/").map(Number); return { f, t }; };
+  for (const label of labels) {
+    const a = parse(ra[label]), b = parse(rb[label]);
+    const bar = (v, color) => el("div", { class: "track" }, v ? el("div", { class: "fill", style: `width:${(100 * v.f) / v.t}%;background:${color}` }) : null);
+    box.append(el("div", { class: "recall-row" },
+      el("span", { class: "num ink2" }, label.replace("M", "Md ")),
+      el("div", { class: "bars" }, bar(a, "var(--a)"), b ? bar(b, "var(--b)") : null),
+      el("span", { class: "num", style: "text-align:right" }, `${a ? a.f : "–"} · ${b ? b.f : "–"} / ${(b || a).t}`)));
+  }
+  box.append(el("div", { class: "note" }, `Magnitude − Md, median: A ${fmt(mA.magnitude_difference_median, "magnitude", true)}, B ${fmt(mB.magnitude_difference_median, "magnitude", true)}.`));
+}
+
+function renderRefTable(refsA, refsB) {
+  const box = $("ref-table");
+  box.replaceChildren();
+  const events = refsB.length ? refsB : refsA;
+  if (!events.length) return;
+  const cell = (match, key, signed) => el("td", { class: "r num" + (match ? "" : " muted") }, match ? fmt(match[key], key === "dt" ? "time_offset" : "_m", signed) : "missed");
+  const body = el("tbody");
+  events.forEach((ev, i) => {
+    const a = refsA[i]?.match, b = refsB[i]?.match;
+    let st = null;
+    if (refsA.length && refsB.length) {
+      if (a && !b) st = statusEl("worse", "newly missed");
+      else if (!a && b) st = statusEl("better", "newly matched");
+    }
+    const dEpi = a && b ? b.offset_m - a.offset_m : null;
+    body.append(el("tr", {
+      onpointerenter: () => focus(b ? { kind: "b", i: b.index } : a ? { kind: "a", i: a.index } : null),
+      onpointerleave: () => focus(null),
+    },
+      el("td", { class: "num" }, clockTime(ev.time)),
+      el("td", { class: "r num" }, isNum(ev.magnitude) ? ev.magnitude.toFixed(1) : "–"),
+      el("td", { class: "r num" }, fmt(ev.depth, "_m")),
+      cell(a, "offset_m"), cell(b, "offset_m"),
+      el("td", { class: "r num" }, isNum(dEpi) ? fmt(dEpi, "_m", true) : ""),
+      cell(a, "dz_m", true), cell(b, "dz_m", true),
+      cell(a, "dt", true), cell(b, "dt", true),
+      el("td", {}, st)));
+  });
+  box.append(el("table", {},
+    el("thead", {}, el("tr", {},
+      el("th", {}, "origin time (UTC)"), el("th", { class: "r" }, "Md"), el("th", { class: "r" }, "depth km"),
+      el("th", { class: "r" }, el("span", { class: "key a" }), " epi. m"), el("th", { class: "r" }, el("span", { class: "key b" }), " epi. m"), el("th", { class: "r" }, "Δ epi."),
+      el("th", { class: "r" }, el("span", { class: "key a" }), " dz m"), el("th", { class: "r" }, el("span", { class: "key b" }), " dz m"),
+      el("th", { class: "r" }, el("span", { class: "key a" }), " dt s"), el("th", { class: "r" }, el("span", { class: "key b" }), " dt s"),
+      el("th", {}, ""))), body));
+}
+
+// ---------------------------------------------------------------- runs table
+
+function renderRuns() {
+  const box = $("runs");
+  box.replaceChildren();
+  const mp = state.overview.settings?.metrics?.min_picks ?? 8;
+  $("runs-sub").textContent = `All runs of the example, each paired with the baseline. Lost and new count detections with at least ${mp} picks. Pick A and B in the last column.`;
+  const runs = [...state.overview.runs].sort((x, y) => {
+    if (x.name === "baseline") return -1;
+    if (y.name === "baseline") return 1;
+    return (y.metrics?.created || "9").localeCompare(x.metrics?.created || "9");
+  });
+  const heads = ["run", "state", "created", "qseek", "overrides", "events", `≥ ${mp} picks`, "lost", "new", "shift m", "nn m", "RMS s", "ref.", "time s", "gates", "pick"];
+  const body = el("tbody");
+  for (const r of runs) {
+    const m = r.metrics || {};
+    const env = m.environment || {};
+    const vb = r.vs_baseline;
+    const a = vb?.association;
+    let gates = el("span", { class: "muted" }, r.name === "baseline" ? "–" : "");
+    if (vb) {
+      gates = el("span", { class: "controls" },
+        a?.identical ? statusEl("ok", "identical") : null,
+        vb.regressions.length ? statusEl("regression", String(vb.regressions.length)) : null,
+        vb.better.length ? statusEl("better", String(vb.better.length)) : null,
+        !a?.identical && !vb.regressions.length && !vb.better.length ? statusEl("ok", "pass") : null);
+      gates.title = [...vb.regressions.map((l) => `regression: ${l}`), ...vb.better.map((l) => `better: ${l}`)].join("\n");
+    }
+    const overrides = Object.entries(m.config?.overrides || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(" ");
+    const pick = r.metrics ? el("span", { class: "pickbtns" },
+      el("button", { class: r.name === state.a ? "on-a" : "", title: "Set as A", onclick: () => { state.a = r.name; loadSelection(); } }, "A"),
+      el("button", { class: r.name === state.b ? "on-b" : "", title: "Set as B", onclick: () => { state.b = r.name; loadSelection(); } }, "B")) : null;
+    let stateCell = el("span", { class: "badge" }, r.state);
+    if (r.state === "running") stateCell = el("span", { class: "controls" }, el("span", { class: "dot pulse" }), el("span", { class: "num ink2" }, `${shortTime(r.progress?.time_progress).slice(11)} · ${r.progress?.n_detections ?? 0} det.`));
+    const cls = [r.name === state.a ? "sel-a" : "", r.name === state.b ? "sel-b" : "", r.metrics ? "" : "dim"].join(" ");
+    const matched = get(m, "reference.n_matched");
+    body.append(el("tr", { class: cls },
+      el("td", { class: "mono" }, r.name, r.name === "baseline" && m.run ? el("span", { class: "muted" }, ` ← ${m.run}`) : null),
+      el("td", {}, stateCell),
+      el("td", { class: "num ink2", title: m.created || "" }, m.created ? ago(m.created) : "–"),
+      el("td", { class: "num" }, (env.qseek_commit || "–").slice(0, 8), env.qseek_dirty ? el("span", { class: "muted" }, "+dirty") : null),
+      el("td", { class: "mono muted", style: "max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap", title: overrides }, overrides || "–"),
+      el("td", { class: "r num" }, fmt(get(m, "detections.n_events"), "n_")),
+      el("td", { class: "r num" }, fmt(get(m, "detections.n_events_min_picks"), "n_")),
+      el("td", { class: "r num" }, a ? fmt(a.n_lost_good, "n_") : "–"),
+      el("td", { class: "r num" }, a ? fmt(a.n_new_good, "n_") : "–"),
+      el("td", { class: "r num" }, a ? fmt(a.shift_horizontal_median_m, "_m") : "–"),
+      el("td", { class: "r num" }, fmt(get(m, "detections.nn_distance_median_m"), "_m")),
+      el("td", { class: "r num" }, fmt(get(m, "detections.rms_median_s"), "rms")),
+      el("td", { class: "r num" }, isNum(matched) ? `${matched}/${get(m, "reference.n_events")}` : "–"),
+      el("td", { class: "r num" }, fmt(get(m, "runtime.search_time_s"), "x_s")),
+      el("td", {}, gates),
+      el("td", {}, pick)));
+  }
+  box.append(el("table", {}, el("thead", {}, el("tr", {}, ...heads.map((h, k) => el("th", { class: k >= 5 && k <= 13 ? "r" : "" }, h)))), body));
+}
+
+
+// ---------------------------------------------------------------- HypoDD
+
+const HYPODD_ROWS = [
+  { group: "Double-difference residual, median |res|" },
+  { key: "dd_residuals.all.abs_median_ms", label: "all data", unit: "ms", lower: true },
+  { key: "dd_residuals.P.abs_median_ms", label: "P", unit: "ms", lower: true },
+  { key: "dd_residuals.S.abs_median_ms", label: "S", unit: "ms", lower: true },
+  { key: "dd_residuals.all.abs_p90_ms", label: "all data, p90 |res|", unit: "ms", lower: true },
+  { key: "dd_residuals.all.rms_ms", label: "all data, RMS", unit: "ms", lower: true },
+  { group: "Locations" },
+  { key: "nn_distance_median_m", label: "nearest neighbor, median", unit: "m", lower: true },
+  { key: "nn_distance_horizontal_median_m", label: "nearest neighbor horiz., median", unit: "m", lower: true },
+  { key: "depth_median_m", label: "depth, median", unit: "m" },
+  { key: "depth_p10_m", label: "depth, p10", unit: "m" },
+  { key: "depth_p90_m", label: "depth, p90", unit: "m" },
+  { group: "Reference catalog" },
+  { key: "reference.n_matched", label: "events matched" },
+  { key: "reference.epicenter_offset_median_m", label: "epicenter offset, median", unit: "m", lower: true },
+  { key: "reference.depth_offset_median_m", label: "depth offset dz, median", unit: "m" },
+  { key: "reference.depth_offset_abs_median_m", label: "depth offset |dz|, median", unit: "m", lower: true },
+  { group: "Shift to the HypoDD locations" },
+  { key: "vs_hypodd.shift_horizontal_median_m", label: "horizontal, median", unit: "m" },
+  { key: "vs_hypodd.shift_depth_median_m", label: "depth dz, median", unit: "m" },
+  { key: "vs_hypodd.relative_shift_median_m", label: "relative, median", unit: "m" },
+  { key: "vs_hypodd.relative_shift_p90_m", label: "relative, p90", unit: "m" },
+];
+const HYPODD_CHARTS = [
+  { title: "Double-difference residual, median |res|", unit: "ms", bars: [
+    { key: "dd_residuals.all.abs_median_ms", label: "all" },
+    { key: "dd_residuals.P.abs_median_ms", label: "P" },
+    { key: "dd_residuals.S.abs_median_ms", label: "S" },
+  ] },
+  { title: "Nearest neighbor, median", unit: "m", bars: [
+    { key: "nn_distance_median_m", label: "3D" },
+    { key: "nn_distance_horizontal_median_m", label: "horiz." },
+  ] },
+  { title: "Shift to the HypoDD locations, median", unit: "m", bars: [
+    { key: "vs_hypodd.shift_horizontal_median_m", label: "horiz." },
+    { key: "vs_hypodd.relative_shift_median_m", label: "relative" },
+  ] },
+];
+
+function fmtHypodd(v, unit) {
+  if (!isNum(v)) return "–";
+  return unit === "ms" ? v.toFixed(1) : unit === "m" ? v.toFixed(0) : String(v);
+}
+
+// Colors follow the run: the HypoDD run of a comparison is always --run-3, the Qseek
+// runs take --run-1, --run-2 and --run-4 in the order of their creation.
+function runColor(name, cmp) {
+  if (name === cmp.hypodd_run) return "var(--run-3)";
+  const hypoddRuns = new Set(state.hypodd.map((r) => r.run));
+  const created = (n) => runByName(n)?.metrics?.created || "";
+  const qseekRuns = [...new Set(state.hypodd.flatMap((r) => r.comparison?.runs || []))]
+    .filter((n) => !hypoddRuns.has(n))
+    .sort((x, y) => created(x).localeCompare(created(y)) || x.localeCompare(y));
+  const slot = [1, 2, 4][qseekRuns.indexOf(name)] ?? 4;
+  return `var(--run-${slot})`;
+}
+
+function hypoddEntry() {
+  const list = state.hypodd;
+  if (!list.length) return null;
+  const byName = (n) => list.find((r) => r.run === n);
+  if (state.hypoddRun && byName(state.hypoddRun)) return byName(state.hypoddRun);
+  return byName(state.b) || byName(state.a)
+    || list.find((r) => r.source_run === state.b || r.source_run === state.a) || list[0];
+}
+
+function renderHypodd() {
+  const card = $("hypodd-card");
+  const entry = hypoddEntry();
+  card.hidden = !entry;
+  if (!entry) return;
+  const sel = $("sel-hypodd");
+  sel.replaceChildren(...state.hypodd.map((r) => el("option", { value: r.run, selected: r.run === entry.run }, r.run)));
+  sel.onchange = () => { state.hypoddRun = sel.value; renderHypodd(); };
+
+  const sm = entry.summary || {};
+  const fin = sm.final || {};
+  $("hypodd-chips").replaceChildren(
+    chip("source run", entry.source_run),
+    chip("exported", fmt(sm.n_events_exported, "n_")),
+    chip("linked by ph2dt", fmt(sm.n_events_ph2dt, "n_")),
+    chip("relocated", fmt(sm.n_relocated, "n_")),
+    chip("clusters", fmt(sm.n_clusters, "n_")),
+    chip("CND, median", fmt(sm.cnd_median, "n_")),
+    chip("final ct RMS", isNum(fin.ct_rms_ms) ? `${fin.ct_rms_ms} ms` : "–"),
+    chip("centroid shift", isNum(fin.centroid_shift_m) ? `${fin.centroid_shift_m} m` : "–"));
+
+  const cmp = entry.comparison;
+  const legend = $("hypodd-legend"), chart = $("hypodd-chart"), table = $("hypodd-table");
+  legend.replaceChildren(); chart.replaceChildren(); table.replaceChildren();
+  if (!cmp) {
+    $("hypodd-sub").textContent = "";
+    chart.append(el("div", { class: "empty" }, "No comparison yet. Run ",
+      el("code", {}, `just hypodd-compare ${state.example} ${entry.run} [runs...]`), "."));
+    return;
+  }
+  const runs = cmp.runs;
+  $("hypodd-sub").textContent = `${cmp.n_common_events} events common to ${runs.join(", ")}. hypoDD evaluates the double-difference residuals of each run's locations on the catalog differential times of ${cmp.hypodd_run}, without moving them. HypoDD minimizes this measure, so it favors the HypoDD locations; compare the Qseek runs with each other on it.`;
+  legend.append(...runs.map((r) => el("span", {}, el("span", { class: "key sq", style: `background:${runColor(r, cmp)}` }), r)));
+  for (const spec of HYPODD_CHARTS) {
+    const wrap = el("div", { class: "multiple", style: "margin-bottom:14px" },
+      el("h3", {}, `${spec.title} [${spec.unit}]`));
+    chart.append(wrap);
+    drawHypoddBars(wrap, cmp, runs, spec);
+  }
+
+  const body = el("tbody");
+  for (const row of HYPODD_ROWS) {
+    if (row.group) { body.append(el("tr", { class: "group" }, el("td", { colspan: runs.length + 1 }, row.group))); continue; }
+    const values = runs.map((r) => get(cmp.results[r], row.key));
+    const nums = values.filter(isNum);
+    const best = row.lower && nums.length > 1 ? Math.min(...nums) : null;
+    body.append(el("tr", {},
+      el("td", {}, row.label, row.unit ? el("span", { class: "muted" }, ` [${row.unit}]`) : null),
+      ...values.map((v) => el("td", { class: "r num" + (best != null && v === best ? " best" : "") }, fmtHypodd(v, row.unit)))));
+  }
+  table.append(el("table", {},
+    el("thead", {}, el("tr", {}, el("th", {}, "metric"),
+      ...runs.map((r) => el("th", { class: "r" }, el("span", { class: "key sq", style: `background:${runColor(r, cmp)}` }), " ", r)))),
+    body));
+}
+
+function drawHypoddBars(box, cmp, runs, spec) {
+  const BARS = spec.bars;
+  // the shift of the HypoDD run to itself is zero by definition
+  if (spec.bars.some((b) => b.key.startsWith("vs_hypodd."))) runs = runs.filter((r) => r !== cmp.hypodd_run);
+  const W = Math.max(280, box.clientWidth || 420);
+  const barH = 12, gap = 2, groupGap = 16;
+  const m = { l: 58, r: 48, t: 4, b: 22 };
+  const groupH = runs.length * (barH + gap) - gap;
+  const H = m.t + m.b + BARS.length * groupH + (BARS.length - 1) * groupGap;
+  const values = BARS.map((b) => runs.map((r) => get(cmp.results[r], b.key)));
+  const maxV = Math.max(1, ...values.flat().filter(isNum));
+  const ticks = niceTicks(0, maxV, Math.max(2, Math.floor((W - m.l - m.r) / 70)));
+  const x = scale(0, Math.max(maxV, ticks[ticks.length - 1]), m.l, W - m.r);
+  const svg = s("svg", { width: W, height: H, role: "img", "aria-label": `${spec.title} per run, in ${spec.unit}` });
+  for (const t of ticks) {
+    s("line", { x1: x(t), x2: x(t), y1: m.t, y2: H - m.b, class: t === 0 ? "axisline" : "gridline" }, svg);
+    text(svg, x(t), H - 6, String(t), { "text-anchor": "middle" });
+  }
+  text(svg, W - m.r, H - 6, spec.unit, { "text-anchor": "start", dx: 6 });
+  BARS.forEach((b, gi) => {
+    const y0 = m.t + gi * (groupH + groupGap);
+    text(svg, m.l - 8, y0 + groupH / 2 + 3.5, b.label, { "text-anchor": "end" });
+    runs.forEach((r, k) => {
+      const v = values[gi][k];
+      if (!isNum(v)) return;
+      const y = y0 + k * (barH + gap);
+      const w = Math.max(1, x(v) - x(0));
+      const r4 = Math.min(4, w / 2, barH / 2);
+      // rounded data end, square at the baseline
+      const d = `M${x(0)},${y}H${x(0) + w - r4}A${r4},${r4} 0 0 1 ${x(0) + w},${y + r4}V${y + barH - r4}A${r4},${r4} 0 0 1 ${x(0) + w - r4},${y + barH}H${x(0)}Z`;
+      s("path", { d, fill: runColor(r, cmp) }, svg);
+      text(svg, x(0) + w + 4, y + barH - 2, fmtHypodd(v, spec.unit), { "text-anchor": "start", style: "fill:var(--ink-2)" });
+      const hit = s("rect", { x: m.l, y: y - gap / 2, width: W - m.l - m.r, height: barH + gap, fill: "transparent" }, svg);
+      hit.addEventListener("pointermove", (evt) => showTip(evt, `${spec.title}, ${b.label}`,
+        runs.map((rn, kk) => ({ label: rn, color: runColor(rn, cmp), value: isNum(values[gi][kk]) ? `${fmtHypodd(values[gi][kk], spec.unit)} ${spec.unit}` : "–" }))));
+      hit.addEventListener("pointerleave", hideTip);
+    });
+  });
+  box.append(svg);
+}
+
+// ---------------------------------------------------------------- diff
+
+function flatten(obj, prefix = "", out = {}) {
+  if (obj && typeof obj === "object") {
+    const entries = Array.isArray(obj) ? obj.map((v, i) => [String(i), v]) : Object.entries(obj);
+    if (!entries.length) out[prefix] = JSON.stringify(obj);
+    for (const [k, v] of entries) flatten(v, prefix ? `${prefix}.${k}` : k, out);
+  } else {
+    out[prefix] = JSON.stringify(obj);
+  }
+  return out;
+}
+
+const IGNORED = new Set(["created", "project_dir"]);
+
+function renderDiff() {
+  const box = $("diff");
+  box.replaceChildren();
+  const dA = state.details[state.a], dB = state.details[state.b];
+  if (!dA || !dB) return;
+  const fa = flatten(dA.config), fb = flatten(dB.config);
+  const rows = [...new Set([...Object.keys(fa), ...Object.keys(fb)])].sort()
+    .filter((k) => !IGNORED.has(k) && fa[k] !== fb[k] && !(fa[k] === "null" && fb[k] === undefined) && !(fb[k] === "null" && fa[k] === undefined));
+  const ea = flatten(envOf(state.a)), eb = flatten(envOf(state.b));
+  const envRows = [...new Set([...Object.keys(ea), ...Object.keys(eb)])].sort().filter((k) => ea[k] !== eb[k]);
+  const body = el("tbody");
+  const section = (title, keys, A, B) => {
+    body.append(el("tr", { class: "group" }, el("td", { colspan: 3 }, title)));
+    if (!keys.length) body.append(el("tr", {}, el("td", { colspan: 3, class: "muted" }, "identical")));
+    for (const k of keys) body.append(el("tr", {}, el("td", { class: "mono" }, k), el("td", { class: "mono ink2" }, A[k] ?? "–"), el("td", { class: "mono" }, B[k] ?? "–")));
+  };
+  const sha = (n) => (get(runByName(n)?.metrics, "config.config_sha256") || "?").slice(0, 8);
+  section(`search configuration · sha ${sha(state.a)} → ${sha(state.b)}`, rows, fa, fb);
+  section("environment", envRows, ea, eb);
+  box.append(el("table", {},
+    el("thead", {}, el("tr", {}, el("th", {}, "field"), el("th", {}, el("span", { class: "key a" }), ` A ${state.a}`), el("th", {}, el("span", { class: "key b" }), ` B ${state.b}`))),
+    body));
+}
+
+// ---------------------------------------------------------------- events
+
+function showError(err) {
+  $("banner").replaceChildren(el("div", { class: "banner" }, statusEl("regression", ""), el("span", {}, String(err.message || err))));
+}
+
+$("sel-example").addEventListener("change", (e) => loadExample(e.target.value).catch(showError));
+$("sel-a").addEventListener("change", (e) => { state.a = e.target.value; loadSelection().catch(showError); });
+$("sel-b").addEventListener("change", (e) => { state.b = e.target.value; loadSelection().catch(showError); });
+$("swap").addEventListener("click", () => { [state.a, state.b] = [state.b, state.a]; loadSelection().catch(showError); });
+
+let resizeTimer = null, lastWidth = window.innerWidth;
+window.addEventListener("resize", () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderAll, 120);
+});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+
+async function init() {
+  try {
+    state.examples = await api("/api/examples");
+    state.lastOk = Date.now();
+    const h = readHash();
+    const name = state.examples.includes(h.example) ? h.example : state.examples[0];
+    if (!name) { showError("No examples found."); return; }
+    await loadExample(name, h);
+  } catch (e) {
+    showError(e);
+  }
+  setInterval(poll, 4000);
+  setInterval(renderLive, 1000);
+}
+
+init();
+</script>
+</body>
+</html>
