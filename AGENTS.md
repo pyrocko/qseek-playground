@@ -14,14 +14,14 @@ The Qseek docs describe the playground on the page "Playground" under "Get start
 - Everything that imports Qseek runs with the venv of the Qseek checkout: `uv run --project ../qseek --no-sync`. `QSEEK_DIR` points to another checkout.
 - Qseek is an editable install, so Python changes in `../qseek` take effect in the next run. After changes to the C extensions in `src/qseek/ext/`, run `just setup` to rebuild them.
 - `just setup` runs `uv sync --inexact`, so plugins installed into `../qseek/.venv` stay installed.
-- FDSN Rush runs with `uvx fdsn-rush`, in its own environment.
+- FDSN Rush runs from the same venv. `just setup` installs `fdsn-rush>=0.2` into `../qseek/.venv`; an editable checkout installed there stays. The configuration format of 0.2 is not compatible with older releases: `station_selection` is an object with `selection` (`StationSelection`, `GeographicSelection` or `RadiusSelection`), not a list of codes, and unknown keys are refused. `fdsn-rush check download.json` validates a configuration without contacting the server.
 - `scripts/playground.py` uses only the standard library. It reads the documented outputs of a run, `csv/detections.csv` and `qseek.log`, not Qseek internals, so the metrics stay comparable across refactors.
 
 ## The loop
 
 ```sh
 just setup                                   # once, and after C extension changes
-just download campi-flegrei                  # once, about 1 GB
+just download campi-flegrei -n               # once, about 1 GB; exit code 0 ok, 1 error, 2 partial
 # change Qseek in ../qseek
 just search campi-flegrei <run> --force      # about 90 s on the RTX 4060 workstation
 just compare campi-flegrei <run>             # vs. the baseline, exit code 1 on regression
@@ -101,7 +101,7 @@ Create a directory with:
 
 - `README.md` for users: what the example shows, how to run it, what you should see.
 - `example.toml`: `config`, `[reference]` with `catalog` (FDSN text format), `url`, `max_time_difference` and `magnitude_column`, and `[metrics]` with `min_picks` and `pair_max_time_difference`.
-- `download.json` for FDSN Rush, writing `sds/` and `metadata/`.
+- `download.json` for FDSN Rush, writing `sds/` and `metadata/`. Select the stations with a `StationSelection` of explicit `NET.STA` codes, so the station set does not change when the data center adds stations.
 - The search configuration and velocity models, with paths relative to the example directory.
 - `reference/` with the catalog from `just catalog <example>`.
 - `baseline/` from `just search` and `just bless`.

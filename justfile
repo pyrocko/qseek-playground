@@ -13,14 +13,16 @@ playground := uv_run + " python " + quote(justfile_directory() / "scripts" / "pl
 default:
     @just --list
 
-# Install the qseek checkout into its .venv; run again after changing C extensions
+# Install the qseek checkout and FDSN Rush into its .venv; run again after changing C extensions
 setup:
     uv sync --project {{ quote(qseek_dir) }} --inexact --reinstall-package qseek
+    uv pip install --python {{ quote(qseek_dir / ".venv") }} "fdsn-rush>=0.2"
     {{ uv_run }} qseek --version
+    {{ uv_run }} fdsn-rush --version
 
-# Download the waveforms and station metadata of an example
-download example="campi-flegrei":
-    cd "$1" && uvx fdsn-rush download download.json
+# Download the waveforms and station metadata of an example; options: -n (non-interactive), -v
+download example="campi-flegrei" *options:
+    cd "$1" && {{ uv_run }} fdsn-rush download "${@:2}" download.json
 
 # Download the reference catalog of an example again
 catalog example="campi-flegrei":

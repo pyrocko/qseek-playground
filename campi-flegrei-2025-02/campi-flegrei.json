@@ -1,0 +1,58 @@
+{
+  "stations": {
+    "station_xmls": [
+      "metadata/"
+    ]
+  },
+  "data_provider": {
+    "provider": "SDSArchive",
+    "archive": "sds/"
+  },
+  "octree": {
+    "location": {
+      "lat": 40.827,
+      "lon": 14.139
+    },
+    "root_node_size": 1000.0,
+    "n_levels": 6,
+    "east_bounds": [
+      -6000.0,
+      6000.0
+    ],
+    "north_bounds": [
+      -6000.0,
+      6000.0
+    ],
+    "depth_bounds": [
+      0.0,
+      6000.0
+    ]
+  },
+  "image_function": {
+    "image": "SeisBench",
+    "model": "PhaseNet",
+    "pretrained": "volpick",
+    "phase_map": {
+      "P": "fm:P",
+      "S": "fm:S"
+    }
+  },
+  "ray_tracers": [
+    {
+      "tracer": "FastMarching",
+      "velocity_model": {
+        "filename": "campi-flegrei.nd"
+      },
+      "phases": [
+        "fm:P",
+        "fm:S"
+      ]
+    }
+  ],
+  "magnitudes": [
+    {
+      "magnitude": "LocalMagnitude",
+      "model": "campi-flegrei"
+    }
+  ]
+}

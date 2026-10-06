@@ -23,7 +23,7 @@ cd qseek-playground
 just setup
 ```
 
-`just setup` installs the checkout into `../qseek/.venv` and compiles its C extensions. To use a checkout in another place, set `QSEEK_DIR`, e.g. `QSEEK_DIR=~/src/qseek just setup`.
+`just setup` installs the checkout and [FDSN Rush](https://miili.github.io/FDSN-rush/) 0.2 or newer into `../qseek/.venv` and compiles the C extensions of the checkout. To use a checkout in another place, set `QSEEK_DIR`, e.g. `QSEEK_DIR=~/src/qseek just setup`.
 
 ## Run an example
 
@@ -99,8 +99,8 @@ Run `just` to list all recipes. The example defaults to `campi-flegrei` and the 
 
 | Recipe | What it does |
 | --- | --- |
-| `just setup` | Install the Qseek checkout into its `.venv`. Run it again after changing C extensions. |
-| `just download <example>` | Download waveforms and station metadata with [FDSN Rush](https://miili.github.io/FDSN-rush/). |
+| `just setup` | Install the Qseek checkout and FDSN Rush into its `.venv`. Run it again after changing C extensions. |
+| `just download <example> [-n]` | Download waveforms and station metadata with [FDSN Rush](https://miili.github.io/FDSN-rush/) 0.2 or newer. A second run downloads only what is missing. `-n` prints a few `key: value` lines instead of the live view; the log is in `<example>/download.log`. |
 | `just search <example> <run> [--set key=value] [--force]` | Run a search and extract its metrics. `--force` replaces an existing run. |
 | `just ssst <example> <run> <from>` | Search with source-specific station corrections (SSST) from a previous run. Needs a plugin that provides `SourceSpecificStationCorrections`. |
 | `just config <example> <run> [--set key=value]` | Only write the configuration of a run to `<example>/runs/<run>.json`. |

@@ -2,7 +2,9 @@
 */sds/
 */metadata/
 */runs/
-*/download.log
+# Logs and status files of FDSN Rush, Qseek and HypoDD
+*.log
+fdsn-rush-stats.json
 
 __pycache__/
 .venv/

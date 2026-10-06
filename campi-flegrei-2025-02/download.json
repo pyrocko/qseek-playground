@@ -2,7 +2,7 @@
   "writer": {"sds_archive": "sds"},
   "clients": [{"url": "https://webservices.ingv.it/"}],
   "metadata_path": "metadata",
-  "time_range": ["2024-05-20", "2024-05-21"],
+  "time_range": ["2025-02-12", "2025-02-22"],
   "station_selection": {
     "selection": "StationSelection",
     "stations": [
