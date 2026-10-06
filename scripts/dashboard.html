@@ -632,8 +632,10 @@ function defaultPair() {
 const overviewUrl = (example, a) =>
   `/api/examples/${encodeURIComponent(example)}/runs` + (a ? `?against=${encodeURIComponent(a)}` : "");
 
+// Includes the run the overview is paired with, so a poll that loaded the overview
+// for an earlier A does not hide the overview for the current A.
 function runSignature(overview) {
-  return JSON.stringify((overview.runs || []).map((r) => [r.name, r.state, r.metrics?.created, r.progress?.n_detections, r.progress?.time_progress]));
+  return JSON.stringify([overview.against, (overview.runs || []).map((r) => [r.name, r.state, r.metrics?.created, r.progress?.n_detections, r.progress?.time_progress])]);
 }
 
 async function loadExample(name, pair = {}) {
@@ -1623,7 +1625,7 @@ function renderTrendChart(boxId, selId) {
     showTip(evt, `${p.name} · click for B, shift-click for A`, rows);
   });
   hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
-  hit.addEventListener("click", (evt) => { const p = pts[nearest(evt)]; if (evt.shiftKey) state.a = p.name; else state.b = p.name; hideTip(); loadSelection(); });
+  hit.addEventListener("click", (evt) => { const p = pts[nearest(evt)]; if (evt.shiftKey) state.a = p.name; else state.b = p.name; hideTip(); loadSelection().catch(showError); });
   box.append(svg);
   $("trend-sub").textContent = `${pts.length} run${pts.length > 1 ? "s" : ""} in order of creation. "Against A" pairs each run with A; for run metrics the hairline is A. Click a run for B, shift-click for A.`;
 }
@@ -1790,8 +1792,8 @@ function renderRuns() {
     }
     const overrides = Object.entries(m.config?.overrides || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(" ");
     const pick = r.metrics ? el("span", { class: "pickbtns" },
-      el("button", { class: r.name === state.a ? "on-a" : "", title: "Set as A", onclick: () => { state.a = r.name; loadSelection(); } }, "A"),
-      el("button", { class: r.name === state.b ? "on-b" : "", title: "Set as B", onclick: () => { state.b = r.name; loadSelection(); } }, "B")) : null;
+      el("button", { class: r.name === state.a ? "on-a" : "", title: "Set as A", onclick: () => { state.a = r.name; loadSelection().catch(showError); } }, "A"),
+      el("button", { class: r.name === state.b ? "on-b" : "", title: "Set as B", onclick: () => { state.b = r.name; loadSelection().catch(showError); } }, "B")) : null;
     let stateCell = el("span", { class: "badge" }, r.state);
     if (r.state === "running") stateCell = el("span", { class: "controls" }, el("span", { class: "dot pulse" }), el("span", { class: "num ink2" }, `${shortTime(r.progress?.time_progress).slice(11)} · ${r.progress?.n_detections ?? 0} det.`));
     const cls = [r.name === state.a ? "sel-a" : "", r.name === state.b ? "sel-b" : "", r.metrics ? "" : "dim"].join(" ");

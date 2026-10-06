@@ -198,6 +198,11 @@ class Example:
         return self.settings.get("config", f"{self.name}.json")
 
 
+def is_backup(run: str) -> bool:
+    """Backups of replaced runs, e.g. `dev.bak-2026-10-04T210331`, are not listed."""
+    return ".bak-" in run
+
+
 def check_run_name(name: str) -> str:
     """Refuse run names that leave the runs directory."""
     if not RUN_NAME.fullmatch(name):
@@ -432,15 +437,24 @@ def sweep(args: argparse.Namespace) -> int:
     example = Example.load(args.example)
     if args.against and not is_run(example, args.against):
         raise SystemExit(f"run {args.against} does not exist in {example.runs_dir}")
-    names = []
-    exit_code = 0
+    plan = []
     for combination in sweep_values(args.vary):
         suffix = "-".join(
             f"{key.rsplit('.', 1)[-1]}{re.sub(r'[^A-Za-z0-9.]+', '_', value)}"
             for key, value in combination
         )
-        name = f"{args.run}-{suffix}"
+        name = check_run_name(f"{args.run}-{suffix}")
         overrides = [*args.set, *(f"{key}={value}" for key, value in combination)]
+        plan.append((name, overrides))
+    # Refuse existing runs before the first search, not halfway through the sweep
+    existing = [name for name, _ in plan if example.rundir(name).exists()]
+    if existing and not args.force:
+        raise SystemExit(
+            f"runs exist, use --force to replace them: {' '.join(existing)}"
+        )
+    names = []
+    exit_code = 0
+    for name, overrides in plan:
         print(f"{name}: {' '.join(overrides)}", flush=True)
         code, _ = run_search(
             example, name, args.config, overrides, args.ssst_from, args.force, False
@@ -1192,6 +1206,8 @@ def print_runs(
     rows = [(*header, "shift [m]", "ref.", "epi [m]", "time [s]", "set")]
     entries = []
     for path in sorted(example.runs_dir.glob(f"*/{METRICS_FILE}")):
+        if is_backup(path.parent.name):
+            continue
         if only is None or path.parent.name in only:
             entries.append((path.parent.name, json.loads(path.read_text())))
     for name, m in entries:
@@ -1296,7 +1312,7 @@ def runs_overview(example: Example, against: str | None = None) -> dict[str, Any
     entries = []
     if example.runs_dir.exists():
         for rundir in sorted(example.runs_dir.iterdir()):
-            if not rundir.is_dir() or ".bak-" in rundir.name:
+            if not rundir.is_dir() or is_backup(rundir.name):
                 continue
             metrics_file = rundir / METRICS_FILE
             if metrics_file.exists():
