@@ -8,9 +8,9 @@ Commands:
     config   write the search configuration of a run
     search   write the configuration, run `qseek search` and extract the metrics
     metrics  extract the metrics of a finished run
-    compare  compare the metrics of a run with the baseline or another run
-    bless    make the metrics of a run the baseline of the example
+    compare  compare the metrics of a run with another run
     runs     list the runs of an example with their key metrics
+    sweep    run searches for the values of one or more parameters, then list them
     catalog  download the reference catalog of an example
     dashboard  serve the dashboard to look at and compare the runs
 """
@@ -47,7 +47,6 @@ ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_VERSION = 1
 EARTH_RADIUS = 6371e3
 RUNS_DIR = "runs"
-BASELINE_DIR = "baseline"
 METRICS_FILE = "metrics.json"
 RUNINFO_FILE = "playground-run.json"
 DASHBOARD_HTML = Path(__file__).resolve().parent / "dashboard.html"
@@ -81,6 +80,8 @@ METRICS = (
         rel_tolerance=0.1,
     ),
     MetricSpec("detections.semblance_median", "semblance, median"),
+    MetricSpec("detections.semblance_p90", "semblance, p90"),
+    MetricSpec("detections.semblance_max", "semblance, max"),
     MetricSpec("detections.nn_distance_median_m", "nearest neighbor, median [m]"),
     MetricSpec(
         "detections.uncertainty_horizontal_median_m", "uncertainty horiz., median [m]"
@@ -156,6 +157,9 @@ ASSOCIATION_METRICS = (
     MetricSpec("association.rms_delta_median_s", "RMS B - A, median [s]"),
     MetricSpec("association.rms_improved_fraction", "pairs with lower RMS in B"),
     MetricSpec("association.semblance_delta_median", "semblance B - A, median"),
+    MetricSpec(
+        "association.semblance_higher_fraction", "pairs with higher semblance in B"
+    ),
     MetricSpec("association.magnitude_delta_median", "magnitude B - A, median"),
 )
 
@@ -184,21 +188,10 @@ class Example:
         return self.path / RUNS_DIR
 
     @property
-    def baseline_dir(self) -> Path:
-        return self.path / BASELINE_DIR
-
-    @property
-    def baseline(self) -> Path:
-        return self.baseline_dir / METRICS_FILE
-
-    @property
     def reference(self) -> dict[str, Any]:
         return self.settings.get("reference", {})
 
     def rundir(self, run: str) -> Path:
-        """Run directory; the baseline is a run directory of its own."""
-        if run == "baseline":
-            return self.baseline_dir
         return self.runs_dir / run
 
     def default_config(self) -> str:
@@ -206,9 +199,7 @@ class Example:
 
 
 def check_run_name(name: str) -> str:
-    """Refuse run names that are reserved or leave the runs directory."""
-    if name == "baseline":
-        raise SystemExit("the run name baseline is reserved")
+    """Refuse run names that leave the runs directory."""
     if not RUN_NAME.fullmatch(name):
         raise SystemExit(
             f"invalid run name {name!r}: use letters, digits, '.', '_' and '-'"
@@ -360,25 +351,29 @@ def peak_rss_mib() -> float:
     return rss / 1024**2 if sys.platform == "darwin" else rss / 1024
 
 
-def search(args: argparse.Namespace) -> int:
-    example = Example.load(args.example)
-    rundir = example.rundir(check_run_name(args.run))
+def run_search(
+    example: Example,
+    run: str,
+    config_file: str | None,
+    overrides: list[str],
+    ssst_from: str | None,
+    force: bool,
+    verbose: bool,
+) -> tuple[int, dict[str, Any] | None]:
+    """Run one search and extract its metrics; returns the exit code and the metrics."""
+    rundir = example.rundir(check_run_name(run))
     if rundir.exists():
-        if not args.force:
+        if not force:
             raise SystemExit(f"{rundir} exists, use --force to replace it")
         shutil.rmtree(rundir)
 
-    run_config, info = write_config(
-        example, args.run, args.config, args.set, args.ssst_from
-    )
+    run_config, info = write_config(example, run, config_file, overrides, ssst_from)
     cmd = [
         qseek_executable(),
-        "--quiet",
+        "--non-interactive",
         "search",
         str(run_config.relative_to(example.path)),
     ]
-    print(f"running {' '.join(cmd)} in {example.path}", flush=True)
-
     created = datetime.now(timezone.utc)
     start = time.perf_counter()
     exit_code = subprocess.call(cmd, cwd=example.path)
@@ -386,7 +381,7 @@ def search(args: argparse.Namespace) -> int:
 
     runinfo = {
         "example": example.name,
-        "run": args.run,
+        "run": run,
         "created": created.isoformat(),
         **info,
         "command": cmd[1:],
@@ -397,11 +392,63 @@ def search(args: argparse.Namespace) -> int:
     }
     if not rundir.exists():
         print(f"qseek did not create {rundir}", file=sys.stderr)
-        return exit_code or 1
+        return exit_code or 1, None
     (rundir / RUNINFO_FILE).write_text(json.dumps(runinfo, indent=2) + "\n")
 
-    metrics = extract_metrics(example, args.run)
-    print_metrics(metrics)
+    metrics = extract_metrics(example, run)
+    print_metrics(metrics, verbose=verbose)
+    return exit_code, metrics
+
+
+def search(args: argparse.Namespace) -> int:
+    example = Example.load(args.example)
+    exit_code, _ = run_search(
+        example,
+        args.run,
+        args.config,
+        args.set,
+        args.ssst_from,
+        args.force,
+        args.verbose,
+    )
+    return exit_code
+
+
+def sweep_values(specs: list[str]) -> list[list[tuple[str, str]]]:
+    """Cartesian product of `key.path=v1,v2,...`: one list of `key=value` per run."""
+    axes = []
+    for spec in specs:
+        if "=" not in spec:
+            raise SystemExit(f"invalid --vary {spec!r}, expected key.path=v1,v2,...")
+        key, values = spec.split("=", 1)
+        axes.append([(key, value) for value in values.split(",")])
+    combinations: list[list[tuple[str, str]]] = [[]]
+    for axis in axes:
+        combinations = [[*done, item] for done in combinations for item in axis]
+    return combinations
+
+
+def sweep(args: argparse.Namespace) -> int:
+    example = Example.load(args.example)
+    if args.against and not is_run(example, args.against):
+        raise SystemExit(f"run {args.against} does not exist in {example.runs_dir}")
+    names = []
+    exit_code = 0
+    for combination in sweep_values(args.vary):
+        suffix = "-".join(
+            f"{key.rsplit('.', 1)[-1]}{re.sub(r'[^A-Za-z0-9.]+', '_', value)}"
+            for key, value in combination
+        )
+        name = f"{args.run}-{suffix}"
+        overrides = [*args.set, *(f"{key}={value}" for key, value in combination)]
+        print(f"{name}: {' '.join(overrides)}", flush=True)
+        code, _ = run_search(
+            example, name, args.config, overrides, args.ssst_from, args.force, False
+        )
+        names.append(name)
+        exit_code = exit_code or code
+    print()
+    print_runs(example, names, args.against)
     return exit_code
 
 
@@ -690,6 +737,7 @@ def associate(
         "rms_delta_median_s": rounded(median(d_rms), 4),
         "rms_improved_fraction": fraction(d_rms, positive=False),
         "semblance_delta_median": rounded(median(d_semblance), 4),
+        "semblance_higher_fraction": fraction(d_semblance, positive=True),
         "magnitude_delta_median": rounded(median(d_magnitude), 2),
     }
     return summary, pairs
@@ -719,8 +767,6 @@ def associate_runs(
 
 
 def extract_metrics(example: Example, run: str) -> dict[str, Any]:
-    if run == "baseline":
-        raise SystemExit("the baseline keeps the metrics of its run, bless it again")
     rundir = example.rundir(run)
     if not rundir.exists():
         raise SystemExit(f"run {run} does not exist in {example.runs_dir}")
@@ -745,6 +791,10 @@ def extract_metrics(example: Example, run: str) -> dict[str, Any]:
         "stations_median": rounded(median(column(detections, "n_stations")), 1),
         "rms_median_s": rounded(median(column(detections, "rms")), 4),
         "semblance_median": rounded(median(column(detections, "semblance")), 4),
+        "semblance_mean": rounded(mean(column(detections, "semblance")), 4),
+        "semblance_p90": rounded(percentile(column(detections, "semblance"), 90.0), 4),
+        # the stack of the picks at its best: a high maximum means the phases stack well
+        "semblance_max": rounded(max(column(detections, "semblance"), default=None), 4),
         "semblance_min": rounded(min(column(detections, "semblance"), default=None), 4),
         # clustering of the detections with min. picks; lower is tighter
         "nn_distance_median_m": rounded(median(nn_distances), 1),
@@ -863,11 +913,61 @@ def print_table(rows: list[tuple[str, ...]]) -> None:
         print("  ".join(cells).rstrip())
 
 
-def print_metrics(metrics: dict[str, Any]) -> None:
+# Run metrics that differ from run to run; `compare` shows them only with --full
+QUIET_METRICS = (
+    "runtime.wall_time_s",
+    "runtime.peak_rss_mib",
+    "runtime.processing_rate_mib_s_median",
+)
+MAX_MISSED = 5  # missed reference events printed; metrics.json lists all
+
+
+def print_missed(prefix: str, events: list[dict[str, Any]]) -> None:
+    """Print the largest events first, the rest as a count."""
+    events = sorted(events, key=lambda ev: -(ev["magnitude"] or 0.0))
+    for ev in events[:MAX_MISSED]:
+        print(f"{prefix} {ev['time']} M{fmt(ev['magnitude'])}")
+    if len(events) > MAX_MISSED:
+        print(f"{prefix} +{len(events) - MAX_MISSED} more (smaller)")
+
+
+def overrides_text(metrics: dict[str, Any]) -> str:
+    overrides = get(metrics, "config.overrides")
+    overrides = overrides.items() if isinstance(overrides, dict) else ()
+    return " ".join(
+        f"{k}={json.dumps(v) if not isinstance(v, dict) else '...'}"
+        for k, v in overrides
+    )
+
+
+def print_metrics(metrics: dict[str, Any], verbose: bool = True) -> None:
+    """Print the metrics of a run: all of them, or one line."""
     env = metrics.get("environment", {})
     commit = (env.get("qseek_commit") or "unknown")[:10]
     dirty = " (dirty)" if env.get("qseek_dirty") else ""
-    print(f"\n{metrics['example']} / {metrics['run']}: qseek {commit}{dirty}")
+    head = f"{metrics['example']} / {metrics['run']}: qseek {commit}{dirty}"
+    if not verbose:
+        matched, total = (
+            get(metrics, "reference.n_matched"),
+            get(metrics, "reference.n_events"),
+        )
+        parts = [
+            f"det {fmt(get(metrics, 'detections.n_events'))}",
+            f"≥picks {fmt(get(metrics, 'detections.n_events_min_picks'))}",
+            f"picks {fmt(get(metrics, 'detections.picks_median'))}",
+            f"rms {fmt(get(metrics, 'detections.rms_median_s'))}",
+            f"sem max {fmt(get(metrics, 'detections.semblance_max'))}",
+            f"ref {matched}/{total}",
+            f"epi {fmt(get(metrics, 'reference.epicenter_offset_median_m'))} m",
+            f"{fmt(get(metrics, 'runtime.search_time_s'))} s",
+        ]
+        print(f"{head}\n  {'  '.join(parts)}")
+        if overrides_text(metrics):
+            print(f"  set {overrides_text(metrics)}")
+        if matched is not None and matched < total:
+            print(f"  missed {total - matched}, see `just compare` or metrics.json")
+        return
+    print(f"\n{head}")
     for spec in METRICS:
         value = get(metrics, spec.key)
         if value is not None:
@@ -876,9 +976,7 @@ def print_metrics(metrics: dict[str, Any]) -> None:
     if by_mag:
         recall = ", ".join(f"{k}: {v}" for k, v in by_mag.items())
         print(f"  {'recall by magnitude':<34} {recall}")
-    missed = get(metrics, "reference.missed") or []
-    for ev in missed:
-        print(f"  missed {ev['time']} M{fmt(ev['magnitude'])}")
+    print_missed("  missed", get(metrics, "reference.missed") or [])
 
 
 def metrics(args: argparse.Namespace) -> int:
@@ -893,7 +991,7 @@ def metrics(args: argparse.Namespace) -> int:
 def load_metrics(example: Example, name: str, extract: bool = True) -> dict[str, Any]:
     path = example.rundir(name) / METRICS_FILE
     if not path.exists():
-        if extract and name != "baseline" and example.rundir(name).exists():
+        if extract and example.rundir(name).exists():
             return extract_metrics(example, name)
         raise SystemExit(f"no metrics at {path}")
     return json.loads(path.read_text())
@@ -999,14 +1097,14 @@ def compare(args: argparse.Namespace) -> int:
     result = compare_metrics(
         current, reference, example.settings.get("tolerances", {}), association
     )
-    if args.run != "baseline":
-        out = example.rundir(args.run) / f"comparison-{args.against}.json"
-        out.write_text(json.dumps(result, indent=2) + "\n")
+    full = args.full
+    out = example.rundir(args.run) / f"comparison-{args.against}.json"
+    out.write_text(json.dumps(result, indent=2) + "\n")
 
     env_ref = reference.get("environment", {})
     env_cur = current.get("environment", {})
     print(
-        f"{example.name}: {args.run} "
+        f"{args.run} "
         f"(qseek {(env_cur.get('qseek_commit') or '?')[:10]}"
         f"{', dirty' if env_cur.get('qseek_dirty') else ''}) "
         f"vs {args.against} (qseek {(env_ref.get('qseek_commit') or '?')[:10]})"
@@ -1024,16 +1122,19 @@ def compare(args: argparse.Namespace) -> int:
         )
         if association["identical"]:
             print("  B is identical to A")
-        print_table(
-            [
-                (
-                    f"  {row['label']}",
-                    fmt(row["value"]),
-                    "WORSE" if row["status"] == "regression" else "",
-                )
-                for row in result["association"]["rows"]
-            ]
-        )
+        elif association["n_unchanged"] == association["n_paired"] and not full:
+            print("  all pairs unchanged")
+        rows = [
+            (
+                f"  {row['label']}",
+                fmt(row["value"]),
+                "WORSE" if row["status"] == "regression" else "",
+            )
+            for row in result["association"]["rows"]
+            if full or row["status"] or row["value"] not in (0, 0.0, None)
+        ]
+        if rows and not association["identical"]:
+            print_table(rows)
         print()
     else:
         print("\nno detections of both runs, skipping the paired comparison\n")
@@ -1052,13 +1153,20 @@ def compare(args: argparse.Namespace) -> int:
             status_text[row["status"]],
         )
         for row in result["rows"]
+        if full
+        or row["status"]
+        or (row["delta"] not in (0, 0.0, None) and row["key"] not in QUIET_METRICS)
     ]
-    print_table([("metric", args.against, args.run, "delta", ""), *rows])
+    if rows:
+        print_table([("metric", args.against, args.run, "delta", ""), *rows])
+    else:
+        print("all run metrics equal")
 
-    for ev in result["newly_missed"]:
-        print(f"newly missed: {ev['time']} M{fmt(ev['magnitude'])}")
-    for time_ in result["newly_detected"]:
+    print_missed("newly missed:", result["newly_missed"])
+    for time_ in result["newly_detected"][:MAX_MISSED]:
         print(f"newly detected: {time_}")
+    if len(result["newly_detected"]) > MAX_MISSED:
+        print(f"newly detected: +{len(result['newly_detected']) - MAX_MISSED} more")
 
     if result["regressions"]:
         print(f"\nREGRESSION: {', '.join(result['regressions'])}")
@@ -1067,75 +1175,59 @@ def compare(args: argparse.Namespace) -> int:
     return 0
 
 
-def bless(args: argparse.Namespace) -> int:
-    example = Example.load(args.example)
-    metrics_ = load_metrics(example, check_run_name(args.run))
-    if metrics_.get("runtime", {}).get("completed") is False:
-        raise SystemExit(f"run {args.run} did not complete, not blessing it")
-    rundir = example.rundir(args.run)
-    # The baseline is committed: its metrics, detections and resolved configuration,
-    # so runs can be compared with it after the run directory is gone. The installed
-    # plugins stay in the run directory.
-    sources = [rundir / "csv" / "detections.csv", rundir / "search.json"]
-    for source in sources:
-        if not source.exists():
-            raise SystemExit(f"{source} is missing, not blessing run {args.run}")
-    metrics_.get("environment", {}).pop("plugins", None)
-    staging = example.path / f".{BASELINE_DIR}.new"
-    if staging.exists():
-        shutil.rmtree(staging)
-    (staging / "csv").mkdir(parents=True)
-    (staging / METRICS_FILE).write_text(json.dumps(metrics_, indent=2) + "\n")
-    shutil.copy(sources[0], staging / "csv")
-    shutil.copy(sources[1], staging)
-    if example.baseline_dir.exists():
-        old = example.path / f".{BASELINE_DIR}.old"
-        if old.exists():
-            shutil.rmtree(old)
-        example.baseline_dir.rename(old)
-        staging.rename(example.baseline_dir)
-        shutil.rmtree(old)
-    else:
-        staging.rename(example.baseline_dir)
-    print(f"wrote {example.baseline_dir.relative_to(ROOT)}/ from run {args.run}")
-    return 0
-
-
-def runs(args: argparse.Namespace) -> int:
-    example = Example.load(args.example)
-    header = ("run", "created", "qseek", "events", "min. picks", "lost", "new")
-    rows = [(*header, "shift [m]", "ref.", "time [s]")]
+def print_runs(
+    example: Example, only: list[str] | None = None, against: str | None = None
+) -> None:
+    """One line per run, paired with `against` if given; `only` limits the runs."""
+    header = (
+        "run",
+        "events",
+        "min. picks",
+        "picks",
+        "rms [s]",
+        "sem max",
+        "lost",
+        "new",
+    )
+    rows = [(*header, "shift [m]", "ref.", "epi [m]", "time [s]", "set")]
     entries = []
-    if example.baseline.exists():
-        entries.append(("baseline", json.loads(example.baseline.read_text())))
     for path in sorted(example.runs_dir.glob(f"*/{METRICS_FILE}")):
-        entries.append((path.parent.name, json.loads(path.read_text())))
+        if only is None or path.parent.name in only:
+            entries.append((path.parent.name, json.loads(path.read_text())))
     for name, m in entries:
         association = None
-        if name != "baseline" and example.baseline.exists():
-            association, _ = associate_runs(example, "baseline", name)
+        if against and name != against:
+            association, _ = associate_runs(example, against, name)
         association = association or {}
-        env = m.get("environment", {})
-        commit = (env.get("qseek_commit") or "?")[:8] + (
-            "+" if env.get("qseek_dirty") else ""
-        )
         matched = get(m, "reference.n_matched")
         total = get(m, "reference.n_events")
         rows.append(
             (
                 name,
-                (m.get("created") or "-")[:16],
-                commit,
                 fmt(get(m, "detections.n_events")),
                 fmt(get(m, "detections.n_events_min_picks")),
+                fmt(get(m, "detections.picks_median")),
+                fmt(get(m, "detections.rms_median_s")),
+                fmt(get(m, "detections.semblance_max")),
                 fmt(association.get("n_lost_good")),
                 fmt(association.get("n_new_good")),
                 fmt(association.get("shift_horizontal_median_m")),
                 f"{matched}/{total}" if matched is not None else "-",
+                fmt(get(m, "reference.epicenter_offset_median_m")),
                 fmt(get(m, "runtime.search_time_s")),
+                overrides_text(m),
             )
         )
+    if against:
+        print(f"lost, new and shift: paired with {against}")
     print_table(rows)
+
+
+def runs(args: argparse.Namespace) -> int:
+    example = Example.load(args.example)
+    if args.against and not is_run(example, args.against):
+        raise SystemExit(f"run {args.against} does not exist in {example.runs_dir}")
+    print_runs(example, against=args.against)
     return 0
 
 
@@ -1181,27 +1273,27 @@ def run_progress(rundir: Path) -> dict[str, Any]:
     return progress
 
 
-# Comparisons with the baseline, keyed by the creation times of both runs
+# Comparisons of two runs, keyed by their names and creation times
 _association_cache: dict[tuple[str, ...], dict[str, Any] | None] = {}
 
 
-def baseline_association(
-    example: Example, name: str, created: str | None, baseline_created: str | None
+def cached_association(
+    example: Example,
+    against: str,
+    name: str,
+    created: str | None,
+    against_created: str | None,
 ) -> dict[str, Any] | None:
-    key = (example.name, name, str(created), str(baseline_created))
+    key = (example.name, against, name, str(created), str(against_created))
     if key not in _association_cache:
-        _association_cache[key] = associate_runs(example, "baseline", name)[0]
+        _association_cache[key] = associate_runs(example, against, name)[0]
     return _association_cache[key]
 
 
-def runs_overview(example: Example) -> dict[str, Any]:
+def runs_overview(example: Example, against: str | None = None) -> dict[str, Any]:
+    """All runs of the example, each paired with the run `against` if given."""
     tolerances = example.settings.get("tolerances", {})
-    baseline = (
-        json.loads(example.baseline.read_text()) if example.baseline.exists() else None
-    )
     entries = []
-    if baseline:
-        entries.append({"name": "baseline", "state": "baseline", "metrics": baseline})
     if example.runs_dir.exists():
         for rundir in sorted(example.runs_dir.iterdir()):
             if not rundir.is_dir() or ".bak-" in rundir.name:
@@ -1225,18 +1317,22 @@ def runs_overview(example: Example) -> dict[str, Any]:
                 }
             entries.append(entry)
 
+    reference = next(
+        (e["metrics"] for e in entries if e["name"] == against and e["metrics"]), None
+    )
     for entry in entries:
-        if baseline and entry["metrics"] and entry["name"] != "baseline":
-            association = baseline_association(
+        if reference and entry["metrics"] and entry["name"] != against:
+            association = cached_association(
                 example,
+                against,
                 entry["name"],
                 entry["metrics"].get("created"),
-                baseline.get("created"),
+                reference.get("created"),
             )
             result = compare_metrics(
-                entry["metrics"], baseline, tolerances, association
+                entry["metrics"], reference, tolerances, association
             )
-            entry["vs_baseline"] = {
+            entry["vs_against"] = {
                 "association": {
                     key: value
                     for key, value in (association or {}).items()
@@ -1251,6 +1347,7 @@ def runs_overview(example: Example) -> dict[str, Any]:
             }
     return {
         "example": example.name,
+        "against": against if reference else None,
         "settings": example.settings,
         "metric_specs": [
             {"key": spec.key, "label": spec.label, "better": spec.better}
@@ -1406,9 +1503,7 @@ def hypodd_runs(example: Example) -> list[dict[str, Any]]:
 
 
 def is_run(example: Example, name: str) -> bool:
-    """Whether `name` is the baseline or a run directory of the example."""
-    if name == "baseline":
-        return example.baseline.exists()
+    """Whether `name` is a run directory of the example."""
     return example.runs_dir.is_dir() and any(
         path.is_dir() and path.name == name for path in example.runs_dir.iterdir()
     )
@@ -1437,7 +1532,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             example = Example.load(parts[2])
             if parts[3:] == ["runs"]:
-                self.send_json(runs_overview(example))
+                self.send_json(runs_overview(example, query.get("against", [None])[0]))
             elif parts[3:] == ["hypodd"]:
                 self.send_json(hypodd_runs(example))
             elif len(parts) == 5 and parts[3] == "runs":
@@ -1534,12 +1629,33 @@ def main() -> int:
         )
         if name == "search":
             sub.add_argument("--force", action="store_true", help="replace the run")
+            sub.add_argument(
+                "--verbose", action="store_true", help="print all run metrics"
+            )
+
+    sub = add("sweep", "run a search for each value of the --vary parameters")
+    sub.add_argument(
+        "--vary",
+        action="append",
+        required=True,
+        metavar="KEY.PATH=V1,V2,...",
+        help="parameter and values; several --vary give all combinations."
+        " The runs are named <run>-<key><value>",
+    )
+    sub.add_argument("--set", action="append", default=[], metavar="KEY.PATH=VALUE")
+    sub.add_argument("--config", help="search configuration of the example")
+    sub.add_argument("--ssst-from", metavar="RUN")
+    sub.add_argument("--force", action="store_true", help="replace existing runs")
+    sub.add_argument("--against", metavar="RUN", help="run to pair the sweep runs with")
 
     add("metrics", "extract the metrics of a run")
-    sub = add("compare", "compare a run with the baseline or another run")
-    sub.add_argument("against", nargs="?", default="baseline")
-    add("bless", "make the metrics of a run the baseline")
-    add("runs", "list the runs of an example", run=False)
+    sub = add("compare", "compare a run with another run")
+    sub.add_argument("against", help="run to compare with, e.g. of the unchanged code")
+    sub.add_argument(
+        "--full", action="store_true", help="print all rows, also unchanged ones"
+    )
+    sub = add("runs", "list the runs of an example", run=False)
+    sub.add_argument("--against", metavar="RUN", help="run to pair the runs with")
     add("catalog", "download the reference catalog", run=False)
     sub = commands.add_parser("dashboard", help="serve the dashboard")
     sub.add_argument("--host", default="127.0.0.1")
@@ -1551,8 +1667,8 @@ def main() -> int:
         "search": search,
         "metrics": metrics,
         "compare": compare,
-        "bless": bless,
         "runs": runs,
+        "sweep": sweep,
         "catalog": catalog,
         "dashboard": dashboard,
     }

@@ -37,15 +37,16 @@ just snuffler campi-flegrei dev
 
 The run directory `runs/dev/` holds the detections in `csv/detections.csv`, for QGIS and plotting, and the metrics in `metrics.json`. The [run directory](https://pyrocko.github.io/qseek/results/run-directory/) page of the documentation describes all files.
 
-## Compare with the baseline
+## Compare runs
 
-`baseline/` holds the metrics, detections and configuration of a reference run of this example. Compare your run with it:
+Change the configuration of a run with `--set` and compare it with the run `dev`:
 
-```sh title="Compare the run dev with the baseline"
-just compare campi-flegrei dev
+```sh title="Compare a run with other PhaseNet weights with the run dev"
+just search campi-flegrei original --set image_function.pretrained=original
+just compare campi-flegrei original dev
 ```
 
-The comparison pairs the detections of both runs by origin time, within 1 s. A run of the same Qseek version on the same machine reproduces the baseline exactly and reports `B is identical to A`. A changed configuration reports the detections lost and added, how far the paired detections moved, and how their picks and residuals changed; it fails when it loses more of the detections with at least 8 picks than 2 or 1%, whichever is larger. `just dashboard` shows the comparison with maps and histograms.
+The comparison pairs the detections of both runs by origin time, within 1 s. A run of the same Qseek version on the same machine reproduces an earlier run exactly and reports `B is identical to A`. A changed configuration reports the detections lost and added, how far the paired detections moved, and how their picks and residuals changed; it fails when it loses more of the detections with at least 8 picks than 2 or 1%, whichever is larger. `just dashboard` shows the comparison with maps and histograms.
 
 ## Setup
 
@@ -71,7 +72,7 @@ Source-specific station corrections (SSST) refine the locations in a second sear
 
 ```sh title="Second search with SSST from the run dev"
 just ssst campi-flegrei ssst dev
-just compare campi-flegrei ssst
+just compare campi-flegrei ssst dev
 ```
 
-Against the baseline, SSST moves the paired detections by 175 m (median) and lowers the residual RMS of 83% of them; the median distance between neighboring detections drops from 153 m to 133 m, partly because SSST finds 7 more detections with at least 8 picks. It also loses 6 and adds 13 of them, which fails the comparison. Three of the lost detections have no counterpart within 14 s; the other three moved by 1.9 to 5.3 s in origin time, beyond the 1 s pairing window.
+Against the run it starts from, SSST moves the paired detections by 175 m (median) and lowers the residual RMS of 83% of them; the median distance between neighboring detections drops from 153 m to 133 m, partly because SSST finds 7 more detections with at least 8 picks. It also loses 6 and adds 13 of them, which fails the comparison. Three of the lost detections have no counterpart within 14 s; the other three moved by 1.9 to 5.3 s in origin time, beyond the 1 s pairing window.
