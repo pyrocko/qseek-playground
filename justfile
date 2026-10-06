@@ -32,9 +32,13 @@ catalog example="campi-flegrei":
 config example="campi-flegrei" run="dev" *options:
     {{ playground }} config "$@"
 
-# Run a quiet search (errors only, no live view) and extract its metrics; options: --set key.path=value, --config, --force
+# Run a non-interactive search (errors and a few status lines only, no live view), print its metrics in one line and write metrics.json; options: --verbose, --set key.path=value, --config, --force
 search example="campi-flegrei" run="dev" *options:
     {{ playground }} search "$@"
+
+# Run one search per value of --vary key.path=v1,v2 (several --vary: all combinations), then list them; runs are named <run>-<key><value>
+sweep example="campi-flegrei" run="sweep" *options:
+    {{ playground }} sweep "$@"
 
 # Run a search with source-specific station corrections from a previous run
 ssst example="campi-flegrei" run="ssst" from="dev" *options:
@@ -44,16 +48,12 @@ ssst example="campi-flegrei" run="ssst" from="dev" *options:
 metrics example="campi-flegrei" run="dev":
     {{ playground }} metrics "$@"
 
-# Compare a run with the baseline or another run; fails on a regression
-compare example="campi-flegrei" run="dev" against="baseline":
+# Compare a run with another run, changed rows only (--full: all); fails on a regression
+compare example run against *options:
     {{ playground }} compare "$@"
 
-# Make the metrics of a run the baseline of the example
-bless example="campi-flegrei" run="dev":
-    {{ playground }} bless "$@"
-
-# List the runs of an example with their key metrics
-runs example="campi-flegrei":
+# List the runs of an example with their key metrics; --against RUN pairs them with a run
+runs example="campi-flegrei" *options:
     {{ playground }} runs "$@"
 
 # Open a run in the qseek web UI
@@ -67,8 +67,13 @@ snuffler example="campi-flegrei" run="dev":
 # Delete a run
 remove example run:
     [[ -f "$1/example.toml" ]] || { echo "no example $1" >&2; exit 1; }
-    [[ "$2" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && "$2" != baseline ]] || { echo "invalid run name $2" >&2; exit 1; }
+    [[ "$2" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || { echo "invalid run name $2" >&2; exit 1; }
     rm -rf "$1/runs/$2" "$1/runs/$2.json"
+
+# Delete all runs of an example
+clear example:
+    [[ -f "$1/example.toml" ]] || { echo "no example $1" >&2; exit 1; }
+    shopt -s nullglob dotglob; runs=("$1"/runs/*); (( ${#runs[@]} )) && rm -rf -- "${runs[@]}"; echo "removed ${#runs[@]} entries from $1/runs"
 
 # Serve the dashboard to look at and compare the runs of the examples
 dashboard port="2214":

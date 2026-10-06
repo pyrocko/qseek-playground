@@ -5,6 +5,7 @@ Worked examples for [Qseek](https://github.com/pyrocko/qseek) on real seismic da
 | Example | Data | Result |
 | --- | --- | --- |
 | [Campi Flegrei](campi-flegrei/) | 1 day, 18 stations of the INGV network, 20 May 2024 | 732 detections; all 45 events of the INGV catalog detected |
+| [Campi Flegrei, February 2025](campi-flegrei-2025-02/) | 10 days, 19 stations of the INGV network, 12–22 February 2025 | 6379 detections; 209 of the 211 events of the INGV catalog detected |
 
 The examples follow the [Qseek documentation](https://pyrocko.github.io/qseek/); Campi Flegrei is its [quick start](https://pyrocko.github.io/qseek/getting-started/quick-start/).
 
@@ -33,20 +34,20 @@ just search campi-flegrei dev    # search into campi-flegrei/runs/dev/
 just explore campi-flegrei dev   # open the run in the web UI
 ```
 
-`just search` writes the run directory `<example>/runs/<run>/` and prints the metrics of the run: the detections, how many events of the reference catalog Qseek found and how far its locations are from the catalog.
+`just search` writes the run directory `<example>/runs/<run>/` and prints one line of metrics: the detections, how many events of the reference catalog Qseek found and how far its locations are from the catalog. `--verbose` or `just metrics` prints all metrics.
 
 Change a field of the configuration for one run with `--set`:
 
 ```sh title="Try other PhaseNet weights"
 just search campi-flegrei original --set image_function.pretrained=original
-just compare campi-flegrei original
+just compare campi-flegrei original dev
 ```
 
 The value is JSON, or a string if it does not parse as JSON, e.g. `--set 'octree.depth_bounds=[0, 8000]'`. Nested lists take an index: `--set ray_tracers.0.phases='["fm:P"]'`.
 
 ## Compare runs
 
-`just compare campi-flegrei original` pairs the detections of the run `original` with those of the baseline by origin time. It reports the detections lost and added, how far the paired detections moved, and how their picks, residuals and semblance changed. Then it compares the metrics of both runs, including the match with the reference catalog.
+`just compare campi-flegrei original dev` pairs the detections of the run `original` with those of the run `dev` by origin time. It reports the detections lost and added, how far the paired detections moved, and how their picks, residuals and semblance changed. Then it compares the metrics of both runs, including the match with the reference catalog. It prints only the rows that changed; `--full` prints all rows.
 
 ```sh title="Open the dashboard"
 just dashboard
@@ -101,13 +102,14 @@ Run `just` to list all recipes. The example defaults to `campi-flegrei` and the 
 | --- | --- |
 | `just setup` | Install the Qseek checkout and FDSN Rush into its `.venv`. Run it again after changing C extensions. |
 | `just download <example> [-n]` | Download waveforms and station metadata with [FDSN Rush](https://miili.github.io/FDSN-rush/) 0.2 or newer. A second run downloads only what is missing. `-n` prints a few `key: value` lines instead of the live view; the log is in `<example>/download.log`. |
-| `just search <example> <run> [--set key=value] [--force]` | Run a search and extract its metrics. `--force` replaces an existing run. |
+| `just search <example> <run> [--set key=value] [--force] [--verbose]` | Run a search and extract its metrics. `--force` replaces an existing run, `--verbose` prints all metrics instead of one line. |
+| `just sweep <example> <run> --vary key=v1,v2` | Run one search per value, named `<run>-<key><value>`, and list them in one table. Several `--vary` run all combinations. |
 | `just ssst <example> <run> <from>` | Search with source-specific station corrections (SSST) from a previous run. Needs a plugin that provides `SourceSpecificStationCorrections`. |
 | `just config <example> <run> [--set key=value]` | Only write the configuration of a run to `<example>/runs/<run>.json`. |
-| `just metrics <example> <run>` | Extract the metrics of a run again. |
-| `just compare <example> <run> [against]` | Compare a run with the baseline of the example, or with another run. |
-| `just runs <example>` | List the runs of an example with their key metrics. |
-| `just bless <example> <run>` | Make a run the new baseline: copies its metrics, detections and configuration to `<example>/baseline/`. |
+| `just metrics <example> <run>` | Extract the metrics of a run again and print them all. |
+| `just compare <example> <run> <against> [--full]` | Compare a run with another run, e.g. of the unchanged code. It prints the changed rows; `--full` prints all. |
+| `just runs <example> [--against run]` | List the runs of an example with their key metrics and the `--set` overrides; `--against` pairs them with a run. |
+| `just clear <example>` | Delete all runs of an example. |
 | `just explore`, `just snuffler` | Open a run in the web UI or in Pyrocko Snuffler. |
 | `just dashboard [port]` | Serve the playground dashboard on http://127.0.0.1:2214 to compare runs. |
 | `just catalog <example>` | Download the reference catalog again. |
@@ -130,7 +132,6 @@ qseek-playground/
     ├── campi-flegrei.json    # search configuration
     ├── campi-flegrei.nd      # velocity model
     ├── reference/            # reference catalog
-    ├── baseline/             # metrics, detections and configuration of a known-good run
     ├── sds/, metadata/       # downloaded data (not in git)
     └── runs/                 # run directories (not in git)
 ```

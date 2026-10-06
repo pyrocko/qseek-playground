@@ -3,7 +3,7 @@
 The playground has two jobs:
 
 1. **User examples.** Each example directory is a complete, reproducible Qseek search on real data, with a README for users.
-2. **Closing the loop for Qseek development.** An agent changes Qseek, runs the examples on real data and compares the run with a committed baseline run: which detections were lost or added, how far the detections moved and how their picks, residuals and semblance changed. `just compare` exits non-zero on a regression. A reference catalog gives a coarse, independent check on top.
+2. **Closing the loop for Qseek development.** An agent changes Qseek, runs the examples on real data and compares the run with a run of the unchanged code: which detections were lost or added, how far the detections moved and how their picks, residuals and semblance changed. `just compare` exits non-zero on a regression. A reference catalog gives a coarse, independent check on top.
 
 The repository is public. Keep it free of private code and credentials.
 
@@ -22,23 +22,31 @@ The Qseek docs describe the playground on the page "Playground" under "Get start
 ```sh
 just setup                                   # once, and after C extension changes
 just download campi-flegrei -n               # once, about 1 GB; exit code 0 ok, 1 error, 2 partial
+just search campi-flegrei ref --force        # the unchanged code, about 90 s on the RTX 4060 workstation
 # change Qseek in ../qseek
-just search campi-flegrei <run> --force      # about 90 s on the RTX 4060 workstation
-just compare campi-flegrei <run>             # vs. the baseline, exit code 1 on regression
-just compare campi-flegrei <run> <other>     # vs. another run
-just runs campi-flegrei                      # overview of all runs
+just search campi-flegrei <run> --force
+just compare campi-flegrei <run> ref         # exit code 1 on regression
+just runs campi-flegrei                      # one line per run, with its --set overrides
+just sweep campi-flegrei <prefix> --vary key.path=a,b [--vary k2=c,d]   # one search per value, then one table
 ```
 
 `just compare` prints the paired comparison first, then the run metrics, and writes both to `runs/<run>/comparison-<against>.json`. Read that file instead of parsing the printed table.
 
-`just dashboard` serves the same comparison live on http://127.0.0.1:2214 for the user (`scripts/dashboard.html`, a single file without external dependencies, served by `playground.py dashboard` with a JSON API under `/api/examples/<example>/`: `runs`, `runs/<run>`, `compare?a=&b=` and `hypodd`). When a run finishes, the dashboard makes it B. Keep the page in step when you add or rename metrics: the tables come from `METRICS` and `ASSOCIATION_METRICS`, the tiles and histograms are defined in the page (`renderTiles`, `DISTS`).
+Keep the output short when you run many searches (each printed line costs input tokens):
+
+- `just search` prints one line of metrics, `--verbose` and `just metrics` all of them. Missed reference events: the 5 largest, then a count; `metrics.json` has them all.
+- `just compare` prints only gated rows and rows that changed (not wall time, memory, rate); `--full` prints all rows. A refactor prints `B is identical to A` and `all run metrics equal`.
+- To tune a parameter, use `just sweep` and read its single table (events, picks, RMS, reference match, epicenter offset, time, `--set`; lost/new/shift with `--against <run>`), then `just compare` only for the promising runs. `just runs` gives the same table for all runs.
+- Run names of a sweep are `<prefix>-<key><value>`, e.g. `levels-n_levels3`; the sweep runs its searches one after another.
+
+`just dashboard` serves the same comparison live on http://127.0.0.1:2214 for the user (`scripts/dashboard.html`, a single file without external dependencies, served by `playground.py dashboard` with a JSON API under `/api/examples/<example>/`: `runs?against=<A>`, `runs/<run>`, `compare?a=&b=` and `hypodd`). The runs table and the charts across runs pair every run with A, by default the oldest run. When a run finishes, the dashboard makes it B. Keep the page in step when you add or rename metrics: the tables come from `METRICS` and `ASSOCIATION_METRICS`, the tiles and histograms are defined in the page (`renderTiles`, `DISTS`).
 
 - Name runs after the change, e.g. `fix-octree-split`, and keep one run of the unchanged code for comparison.
 - Try configuration changes with `--set key.path=value` instead of editing the committed search configuration. The overrides are recorded in the run's `metrics.json`.
-- `just search` runs `qseek --quiet search`: the console shows only errors and no live statistics view, which keeps the output an agent reads short. `runs/<run>/qseek.log` still holds the full INFO log that the metrics are read from. Read the log file when you need the warnings.
+- `just search` runs `qseek --non-interactive search`: no live statistics view, and the console shows only errors and a few `key: value` lines (rundir, log file, duration, detections), which keeps the output an agent reads short. `runs/<run>/qseek.log` still holds the full INFO log that the metrics are read from. Read the log file when you need the warnings.
 - Run one search at a time: searches share the GPU and the port of Qseek's HTTP server.
 - Qseek's results are deterministic on the same machine and commit: a repeated run gives identical detection metrics. Runtime varies by about 15%. Any change in a detection metric comes from the change you made.
-- `just bless <example> <run>` copies the run's `metrics.json`, `csv/detections.csv` and resolved `search.json` to `<example>/baseline/`, so runs can be paired with the baseline after its run directory is gone. Bless only an intended improvement, from a run of a committed Qseek version with no other changes (`qseek_dirty: false`), and commit the baseline together with an explanation of what improved. `baseline` is reserved as a run name.
+- There is no committed baseline: the reference is a run of the unchanged code on the same machine, e.g. `ref`, searched before the change. Search it again after `git pull` or a change of the example, and keep it until the change is done. `just compare` and the dashboard work with any two runs.
 
 ## Metrics
 
@@ -56,11 +64,11 @@ just runs campi-flegrei                      # overview of all runs
 | `time_shift_abs_median_s` | Origin time shift |
 | `picks_delta_median`, `picks_gained_fraction`, `picks_lost_fraction` | Change of the picks per pair |
 | `rms_delta_median_s`, `rms_improved_fraction` | Change of the residual RMS per pair |
-| `semblance_delta_median`, `magnitude_delta_median` | Change of semblance and magnitude per pair |
+| `semblance_delta_median`, `semblance_higher_fraction`, `magnitude_delta_median` | Change of semblance and magnitude per pair, and the fraction of pairs with higher semblance in B |
 
 The shifts and changes use the pairs with at least `min_picks` picks in A or in B, so weak detections do not dominate them. The pairing uses the origin time only: a detection whose origin time moved by more than the window counts as lost in A and new in B, and in a dense swarm two events less than a window apart can swap partners. Check the lost and new detections in the dashboard before you trust a count. Interpret them by the change you made: a station correction should move detections and lower the RMS; a refactor should give `identical`.
 
-On Campi Flegrei, SSST from the baseline loses 6 detections with ≥ 8 picks and adds 13: 3 of the lost ones, up to 21 picks, have no detection in B within 14 s; the other 3 moved by 1.9–5.3 s in origin time. It moves the pairs by 175 m (median) and lowers the RMS of 83% of them.
+On Campi Flegrei, SSST from a plain search loses 6 detections with ≥ 8 picks and adds 13: 3 of the lost ones, up to 21 picks, have no detection in B within 14 s; the other 3 moved by 1.9–5.3 s in origin time. It moves the pairs by 175 m (median) and lowers the RMS of 83% of them.
 
 ### Run metrics
 
@@ -68,15 +76,15 @@ On Campi Flegrei, SSST from the baseline loses 6 detections with ≥ 8 picks and
 
 | Section | Metrics |
 | --- | --- |
-| `environment` | host, GPU, CPU count, Qseek version, commit, `qseek_dirty`, installed plugins (not in the baseline) |
+| `environment` | host, GPU, CPU count, Qseek version, commit, `qseek_dirty`, installed plugins |
 | `config` | base configuration, `--set` overrides, SHA-256 of the configuration |
-| `detections` | number of detections, detections with at least `min_picks` picks, picks, stations, residual RMS, semblance, location uncertainty, magnitudes, `nn_distance_median_m`: median 3D distance of a detection with min. picks to its nearest neighbor. It falls with tighter clustering but also with more detections, so compare it only between runs with similar counts |
+| `detections` | number of detections, detections with at least `min_picks` picks, picks, stations, residual RMS, semblance (median, mean, p90, `semblance_max`: the best stack of the picks, high when the phases stack well; min), location uncertainty, magnitudes, `nn_distance_median_m`: median 3D distance of a detection with min. picks to its nearest neighbor. It falls with tighter clustering but also with more detections, so compare it only between runs with similar counts |
 | `runtime` | `search_time_s` (from the log), `wall_time_s`, `peak_rss_mib`, batch times, processing rate, `completed`, `exit_code` |
 | `reference` | `n_matched` and `recall` of the reference catalog, recall per magnitude, epicenter offset (median, p90), depth offset (signed and absolute median), origin time offset, magnitude difference, the missed events |
 
 The reference catalog is coarse: it lists only the larger events, within `max_time_difference` (`[reference]`, 3 s) and has location errors of its own. Use it as an independent sanity check, not as ground truth. Unmatched detections are not false detections.
 
-Gated run metrics in `just compare`: picks per event, residual RMS, search time, reference events detected and the epicenter, depth and origin time offsets to the catalog. Search time is gated only against a baseline from the same host and GPU. A run metric regresses when it is worse than the reference by more than `max(tolerance, rel_tolerance × |reference|)`. The defaults are in `METRICS` and `ASSOCIATION_METRICS` in `scripts/playground.py`; `[tolerances]` in `example.toml` overrides them per example.
+Gated run metrics in `just compare`: picks per event, residual RMS, search time, reference events detected and the epicenter, depth and origin time offsets to the catalog. Search time is gated only against a run from the same host and GPU. A run metric regresses when it is worse than the reference by more than `max(tolerance, rel_tolerance × |reference|)`. The defaults are in `METRICS` and `ASSOCIATION_METRICS` in `scripts/playground.py`; `[tolerances]` in `example.toml` overrides them per example.
 
 ### HypoDD reference
 
@@ -91,9 +99,10 @@ Gated run metrics in `just compare`: picks per event, residual RMS, search time,
 
 ## Examples
 
-| Example | Data | Reference | Baseline |
+| Example | Data | Reference | Search |
 | --- | --- | --- | --- |
-| `campi-flegrei` | 20 May 2024, 18 INGV stations, about 1 GB | INGV catalog, 45 events | 732 detections, 521 with ≥ 8 picks, 153 m nearest neighbor; 45/45 catalog events matched |
+| `campi-flegrei` | 20 May 2024, 18 INGV stations, about 1 GB | INGV catalog, 45 events | 732 detections, 521 with ≥ 8 picks, 153 m nearest neighbor; 45/45 catalog events matched; about 90 s |
+| `campi-flegrei-2025-02` | 12–22 February 2025, 19 INGV stations, about 10 GB | INGV catalog, 211 events | 6379 detections, 3750 with ≥ 8 picks, 69 m nearest neighbor; 209/211 catalog events matched; about 14 min |
 
 ### Add an example
 
@@ -104,7 +113,6 @@ Create a directory with:
 - `download.json` for FDSN Rush, writing `sds/` and `metadata/`. Select the stations with a `StationSelection` of explicit `NET.STA` codes, so the station set does not change when the data center adds stations.
 - The search configuration and velocity models, with paths relative to the example directory.
 - `reference/` with the catalog from `just catalog <example>`.
-- `baseline/` from `just search` and `just bless`.
 
 Add the example to the tables in `README.md` and here, and to the table on the playground page of the Qseek docs. Data stays out of git: `*/sds/`, `*/metadata/` and `*/runs/` are ignored.
 

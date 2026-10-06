@@ -338,7 +338,7 @@ svg text { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
     </section>
     <section class="card">
       <div class="card-head">
-        <div><h2>Across runs</h2><p class="sub" id="trend-sub">Runs in order of creation; the hairline is the baseline.</p></div>
+        <div><h2>Across runs</h2><p class="sub" id="trend-sub">Runs in order of creation; the hairline is A.</p></div>
         <select id="sel-trend" class="select" aria-label="Metric of the upper chart"></select>
       </div>
       <div id="trend"></div>
@@ -379,7 +379,7 @@ svg text { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
 
   <section class="card">
     <div class="card-head">
-      <div><h2>Runs</h2><p class="sub" id="runs-sub">All runs of the example against the baseline. Pick A and B in the last column.</p></div>
+      <div><h2>Runs</h2><p class="sub" id="runs-sub">All runs of the example, each paired with A. Pick A and B in the last column.</p></div>
     </div>
     <div class="table-wrap" id="runs"></div>
   </section>
@@ -412,6 +412,7 @@ const state = {
   minPicks: 0,
   layers: { a: true, b: true, shift: true, ref: false },
   extent: "data",
+  view: null,       // map zoom {f, cE, cN, cZ}: factor and center in km, null shows everything
   changedTab: "lost",
   refMetric: "offset_m",
   trendMetrics: { trend: "vs.n_lost_good", trend2: "vs.shift_horizontal_median_m" },
@@ -620,13 +621,16 @@ const runByName = (name) => (state.overview?.runs || []).find((r) => r.name === 
 const envOf = (name) => runByName(name)?.metrics?.environment || {};
 
 function defaultPair() {
-  const runs = selectableRuns();
-  const done = runs.filter((r) => r.name !== "baseline")
+  const done = [...selectableRuns()]
     .sort((x, y) => (x.metrics.created || "").localeCompare(y.metrics.created || ""));
-  const a = runs.find((r) => r.name === "baseline")?.name || done[0]?.name || null;
+  const a = done[0]?.name || null;
   const b = done.length ? done[done.length - 1].name : a;
   return { a, b };
 }
+
+// The overview pairs every run with A, so it is loaded again when A changes.
+const overviewUrl = (example, a) =>
+  `/api/examples/${encodeURIComponent(example)}/runs` + (a ? `?against=${encodeURIComponent(a)}` : "");
 
 function runSignature(overview) {
   return JSON.stringify((overview.runs || []).map((r) => [r.name, r.state, r.metrics?.created, r.progress?.n_detections, r.progress?.time_progress]));
@@ -635,7 +639,7 @@ function runSignature(overview) {
 async function loadExample(name, pair = {}) {
   state.example = name;
   state.details = {};
-  state.overview = await api(`/api/examples/${encodeURIComponent(name)}/runs`);
+  state.overview = await api(overviewUrl(name, pair.a));
   state.signature = runSignature(state.overview);
   state.minPicks = state.overview.settings?.metrics?.min_picks ?? 0;
   state.hypoddRun = null;
@@ -665,6 +669,12 @@ async function loadSelection() {
   $("main").classList.add("stale-frame");
   try {
     const ex = encodeURIComponent(state.example);
+    if ((state.overview?.against || null) !== a) {
+      const overview = await api(overviewUrl(state.example, a));
+      if (seq !== selectionSeq) return;
+      state.overview = overview;
+      state.signature = runSignature(overview);
+    }
     const [, , cmp] = await Promise.all([
       loadDetail(a),
       loadDetail(b),
@@ -696,7 +706,7 @@ async function poll() {
   if (!state.example) return;
   if (await loadHypodd()) renderHypodd();
   try {
-    const overview = await api(`/api/examples/${encodeURIComponent(state.example)}/runs`);
+    const overview = await api(overviewUrl(state.example, state.a));
     state.lastOk = Date.now();
     const sig = runSignature(overview);
     if (sig !== state.signature) {
@@ -827,7 +837,6 @@ function identity(role, name) {
   return el("div", { class: `ident ${role}` },
     el("div", { class: "role" }, role === "a" ? "A · reference" : "B · candidate"),
     el("div", { class: "name" }, name || "–",
-      name === "baseline" && m.run ? el("span", { class: "badge" }, `from ${m.run}`) : null,
       env.qseek_dirty ? el("span", { class: "badge" }, "dirty") : null),
     dl);
 }
@@ -907,6 +916,17 @@ function renderTiles() {
 // ---------------------------------------------------------------- changes: map and deltas
 
 let mapFocus = null;   // function({kind, i} | null)
+let mapFrame = 0, mapDragging = false;
+let zoomResetBtn = null;
+const ZOOM_MAX = 300;
+function redrawMap() {
+  cancelAnimationFrame(mapFrame);
+  mapFrame = requestAnimationFrame(() => {
+    const D = state.derived;
+    if (D) renderMap(D, filteredIdx(D.dA), filteredIdx(D.dB));
+    if (zoomResetBtn) zoomResetBtn.disabled = !state.view;
+  });
+}
 const focus = (target) => mapFocus && mapFocus(target);
 
 function filteredIdx(detail) {
@@ -922,6 +942,7 @@ function scheduleFiltered() {
   filterTimer = setTimeout(renderFiltered, 60);
 }
 
+const maxSem = (d, idx) => { const v = idx.map((i) => d.detections.semblance[i]).filter(isNum); return v.length ? maxOf(v) : null; };
 function renderChanges() {
   const D = state.derived;
   const { dA, dB } = D;
@@ -939,14 +960,27 @@ function renderChanges() {
     el("span", { class: "sep" }),
     layer("a", " A", el("span", { class: "key a" })),
     layer("b", " B", el("span", { class: "key b" })),
+    el("button", {
+      class: "btn", title: "Show only A, then only B, to compare them in place",
+      "aria-pressed": String(state.layers.a !== state.layers.b),
+      onclick: () => {
+        if (state.layers.a && state.layers.b) state.layers.b = false;
+        else { state.layers.a = !state.layers.a; state.layers.b = !state.layers.b; }
+        renderChanges();
+      },
+    }, "flip A ⇄ B"),
     layer("shift", "shifts", null),
     layer("ref", "catalog", null),
     el("span", { class: "sep" }),
-    el("button", { class: "btn", "aria-pressed": String(state.extent === "volume"), onclick: () => { state.extent = state.extent === "data" ? "volume" : "data"; renderChanges(); } }, "full volume"));
+    el("button", { class: "btn", "aria-pressed": String(state.extent === "volume"), onclick: () => { state.extent = state.extent === "data" ? "volume" : "data"; state.view = null; renderChanges(); } }, "full volume"),
+    zoomResetBtn = el("button", {
+      class: "btn", title: "Show the whole map again (double-click the map)", disabled: !state.view,
+      onclick: () => { state.view = null; redrawMap(); },
+    }, "reset zoom"));
 
   const iA = filteredIdx(dA), iB = filteredIdx(dB);
   $("det-sub").textContent = D.available
-    ? `Detections with at least ${state.minPicks} picks in A or B. Each line joins a detection in A with its pair in B; rings mark detections without a pair. Plan view and sections in km from the center of the search volume. The slider filters this section and the ones below it; the tiles and gates use the ${state.compare.association.min_picks} picks of example.toml.`
+    ? `Detections with at least ${state.minPicks} picks in A or B. Each line joins a detection in A with its pair in B; rings mark detections without a pair. Plan view and sections in km from the center of the search volume. Scroll over the map to zoom, drag to pan, double-click to reset. The slider filters this section and the ones below it; the tiles and gates use the ${state.compare.association.min_picks} picks of example.toml.`
     : "Detections of A or B not available.";
 
   const stats = $("shift-stats");
@@ -961,6 +995,7 @@ function renderChanges() {
       chip("Δh median · p90", `${fmt(quantile(D.dh, 0.5), "_m")} · ${fmt(quantile(D.dh, 0.9), "_m")} m`),
       chip("Δz median · |Δz|", `${fmt(quantile(D.dz, 0.5), "_m", true)} · ${fmt(quantile(D.dz.map(Math.abs), 0.5), "_m")} m`),
       chip("|Δt| median", `${fmt(quantile(D.dt.map(Math.abs), 0.5), "time_shift")} s`),
+      chip("semblance max A → B", `${fmt(maxSem(dA, iA), "semblance")} → ${fmt(maxSem(dB, iB), "semblance")}`),
       chip(`pairs within ${state.compare.association.max_time_difference_s} s origin time, closest first`));
   }
   renderMap(D, iA, iB);
@@ -975,7 +1010,9 @@ function renderMap(D, iA, iB) {
   const detail = dB || dA;
   if (!detail) return;
   const refs = state.layers.ref ? detail.reference || [] : [];
-  const sets = [];
+  const sets = [], extentSets = [];
+  if (dA?.has_detections) extentSets.push({ d: dA.detections, idx: iA });
+  if (dB?.has_detections && !D.same) extentSets.push({ d: dB.detections, idx: iB });
   if (state.layers.a && dA?.has_detections) sets.push({ id: "a", d: dA.detections, idx: iA, color: "var(--a)", name: state.a });
   if (state.layers.b && dB?.has_detections && !D.same) sets.push({ id: "b", d: dB.detections, idx: iB, color: "var(--b)", name: state.b });
 
@@ -985,7 +1022,7 @@ function renderMap(D, iA, iB) {
     E = vol.east; N = vol.north; Z = vol.depth;
   } else {
     const es = [], ns = [], zs = [];
-    for (const st of sets) for (const i of st.idx) { es.push(st.d.east[i]); ns.push(st.d.north[i]); zs.push(st.d.depth[i]); }
+    for (const st of extentSets) for (const i of st.idx) { es.push(st.d.east[i]); ns.push(st.d.north[i]); zs.push(st.d.depth[i]); }
     for (const r of refs) { es.push(r.east); ns.push(r.north); zs.push(r.depth); }
     if (!es.length) { box.append(el("div", { class: "empty" }, "No detections to show.")); return; }
     E = [quantile(es, 0.01), quantile(es, 0.99)]; N = [quantile(ns, 0.01), quantile(ns, 0.99)]; Z = [Math.min(0, quantile(zs, 0.005)), quantile(zs, 0.995)];
@@ -998,6 +1035,12 @@ function renderMap(D, iA, iB) {
   const pw = (E[1] - E[0]) * k, ph = (N[1] - N[0]) * k, zw = (Z[1] - Z[0]) * k;
   const H = m.t + ph + m.gap + zw + m.b;
   const ox = m.l, oy = m.t, sx = ox + pw + m.gap, sy = oy + ph + m.gap;
+  const base = { E: E.slice(), N: N.slice(), Z: Z.slice() };
+  if (state.view) {
+    const v = state.view;
+    const win = (r, c) => { const w = (r[1] - r[0]) / v.f; return [c - w / 2, c + w / 2]; };
+    E = win(base.E, v.cE); N = win(base.N, v.cN); Z = win(base.Z, v.cZ);
+  }
   const xE = scale(E[0], E[1], ox, ox + pw), yN = scale(N[0], N[1], oy + ph, oy);
   const xZ = scale(Z[0], Z[1], sx, sx + zw), yZ = scale(Z[0], Z[1], sy, sy + zw);
   const svg = s("svg", { width: W, height: H, role: "img", "aria-label": "Plan view and depth sections of the detections of A and B with their shifts" });
@@ -1008,6 +1051,7 @@ function renderMap(D, iA, iB) {
     ns: { x0: sx, y0: oy, w: zw, h: ph, px: (c, i) => xZ(c.depth[i]), py: (c, i) => yN(c.north[i]), clip: clip("cp-ns", sx, oy, zw, ph) },
     ew: { x0: ox, y0: sy, w: pw, h: zw, px: (c, i) => xE(c.east[i]), py: (c, i) => yZ(c.depth[i]), clip: clip("cp-ew", ox, sy, pw, zw) },
   };
+  panels.plan.ax = ["E", "N"]; panels.ns.ax = ["Z", "N"]; panels.ew.ax = ["E", "Z"];
   for (const p of Object.values(panels)) s("rect", { x: p.x0, y: p.y0, width: p.w, height: p.h, fill: "var(--surface)" }, svg);
   const tE = niceTicks(E[0], E[1], Math.max(3, Math.round(pw / 80)));
   const tN = niceTicks(N[0], N[1], Math.max(3, Math.round(ph / 80)));
@@ -1107,8 +1151,64 @@ function renderMap(D, iA, iB) {
   };
   mapFocus = drawFocus;
 
-  const overlay = s("rect", { x: 0, y: 0, width: W, height: H, fill: "transparent" }, svg);
+  const overlay = s("rect", { x: 0, y: 0, width: W, height: H, fill: "transparent", style: `cursor:${state.view ? "grab" : "crosshair"};touch-action:none` }, svg);
+
+  // Zoom and pan: the view keeps the value under the pointer at the same place on the two axes of the panel.
+  const range = (key) => {
+    const v = state.view;
+    if (!v) return base[key];
+    const w = (base[key][1] - base[key][0]) / v.f, c = v["c" + key];
+    return [c - w / 2, c + w / 2];
+  };
+  const fraction = (p, which, key, px, py) => which === 0 ? (px - p.x0) / p.w : key === "N" ? (p.y0 + p.h - py) / p.h : (py - p.y0) / p.h;
+  const anchor = (p, px, py) => p.ax.map((key, which) => {
+    const frac = fraction(p, which, key, px, py), r = range(key);
+    return { key, value: r[0] + frac * (r[1] - r[0]) };
+  });
+  const setView = (p, f, anchors, px, py) => {
+    if (f <= 1.001) { state.view = null; redrawMap(); return; }
+    f = Math.min(ZOOM_MAX, f);
+    const mid = (r) => (r[0] + r[1]) / 2;
+    const next = { ...(state.view || { cE: mid(base.E), cN: mid(base.N), cZ: mid(base.Z) }), f };
+    anchors.forEach(({ key, value }, which) => {
+      const w = (base[key][1] - base[key][0]) / f, frac = fraction(p, which, key, px, py);
+      next["c" + key] = Math.min(base[key][1], Math.max(base[key][0], value - frac * w + w / 2));
+    });
+    state.view = next;
+    redrawMap();
+  };
+  const panelOf = (px, py) => Object.values(panels).find((p) => px >= p.x0 && px <= p.x0 + p.w && py >= p.y0 && py <= p.y0 + p.h);
+  overlay.addEventListener("wheel", (evt) => {
+    const r = svg.getBoundingClientRect();
+    const px = evt.clientX - r.left, py = evt.clientY - r.top, p = panelOf(px, py);
+    if (!p) return;
+    evt.preventDefault();
+    const dy = evt.deltaY * (evt.deltaMode === 1 ? 33 : 1);
+    setView(p, (state.view?.f ?? 1) * Math.exp(-dy * 0.002), anchor(p, px, py), px, py);
+  }, { passive: false });
+  overlay.addEventListener("dblclick", () => { state.view = null; redrawMap(); });
+  overlay.addEventListener("pointerdown", (evt) => {
+    if (evt.button !== 0 || !state.view) return;
+    const r = svg.getBoundingClientRect();
+    const px = evt.clientX - r.left, py = evt.clientY - r.top, p = panelOf(px, py);
+    if (!p) return;
+    evt.preventDefault();
+    const start = anchor(p, px, py);
+    mapDragging = true;
+    drawFocus(null); hideTip();
+    const move = (e) => setView(p, state.view?.f ?? 1, start, e.clientX - r.left, e.clientY - r.top);
+    const up = () => {
+      mapDragging = false;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  });
   overlay.addEventListener("pointermove", (evt) => {
+    if (mapDragging) return;
     const r = svg.getBoundingClientRect();
     const px = evt.clientX - r.left, py = evt.clientY - r.top;
     const pname = Object.entries(panels).find(([, p]) => px >= p.x0 && px <= p.x0 + p.w && py >= p.y0 && py <= p.y0 + p.h)?.[0];
@@ -1316,7 +1416,7 @@ function renderTimeline() {
 const DISTS = [
   { col: "n_picks", label: "Picks per event", unit: "", key: "n_", integer: true },
   { col: "rms", label: "Residual RMS", unit: "s", key: "rms" },
-  { col: "semblance", label: "Semblance", unit: "", key: "semblance" },
+  { col: "semblance", label: "Semblance", unit: "", key: "semblance", max: true },
   { col: "depth", label: "Depth", unit: "km", key: "_m" },
   { col: "magnitude", label: "Magnitude", unit: "", key: "magnitude" },
   { col: "uncertainty_horizontal", label: "Horizontal uncertainty", unit: "m", key: "n_" },
@@ -1346,7 +1446,7 @@ function drawHist(box, spec, series) {
   const wrap = el("div", { class: "multiple" });
   const meds = series.map((sr) => quantile(sr.values, 0.5));
   wrap.append(el("h3", {}, spec.label + (spec.unit ? ` [${spec.unit}]` : ""),
-    el("span", {}, series.map((sr, k) => `${series.length > 1 ? sr.id + " " : "median "}${fmt(meds[k], spec.key, spec.signed)}`).join("  "))));
+    el("span", {}, series.map((sr, k) => `${series.length > 1 ? sr.id + " " : "median "}${fmt(meds[k], spec.key, spec.signed)}${spec.max ? ` · max ${fmt(sr.values.length ? maxOf(sr.values) : null, spec.key)}` : ""}`).join("  "))));
   box.append(wrap);
   const all = series.flatMap((sr) => sr.values);
   if (!all.length) { wrap.append(el("div", { class: "empty" }, "no values")); return; }
@@ -1454,7 +1554,7 @@ function trendOptions() {
   const per = state.overview.metric_specs.map((m) => ({ key: m.key, label: m.label, get: (r) => get(r.metrics, m.key), base: true }));
   const vs = (state.overview.association_specs || []).map((m) => {
     const k = m.key.split(".")[1];
-    return { key: `vs.${k}`, label: `vs baseline: ${m.label}`, get: (r) => r.vs_baseline?.association?.[k], base: false, fmtKey: k };
+    return { key: `vs.${k}`, label: `vs A: ${m.label}`, get: (r) => r.vs_against?.association?.[k], base: false, fmtKey: k };
   });
   return [...vs, ...per];
 }
@@ -1469,7 +1569,7 @@ function renderTrendChart(boxId, selId) {
   const options = trendOptions();
   if (!sel.options.length) {
     sel.replaceChildren(
-      el("optgroup", { label: "against the baseline" }, ...options.filter((o) => !o.base).map((o) => el("option", { value: o.key }, o.label.replace("vs baseline: ", "")))),
+      el("optgroup", { label: "against A" }, ...options.filter((o) => !o.base).map((o) => el("option", { value: o.key }, o.label.replace("vs A: ", "")))),
       el("optgroup", { label: "run metrics" }, ...options.filter((o) => o.base).map((o) => el("option", { value: o.key }, o.label))));
     sel.addEventListener("change", () => { state.trendMetrics[boxId] = sel.value; renderTrendChart(boxId, selId); });
   }
@@ -1478,10 +1578,10 @@ function renderTrendChart(boxId, selId) {
   const key = opt.fmtKey || opt.key;
   const box = $(boxId);
   box.replaceChildren();
-  const runs = selectableRuns().filter((r) => r.name !== "baseline")
+  const runs = [...selectableRuns()]
     .sort((x, y) => (x.metrics.created || "").localeCompare(y.metrics.created || ""));
   const pts = runs.map((r) => ({ name: r.name, v: opt.get(r), created: r.metrics.created, env: r.metrics.environment || {} })).filter((p) => isNum(p.v));
-  const base = opt.base ? get(runByName("baseline")?.metrics, opt.key) : null;
+  const base = opt.base ? get(runByName(state.a)?.metrics, opt.key) : null;
   if (!pts.length) { box.append(el("div", { class: "empty" }, "No runs with this metric.")); return; }
 
   const W = Math.max(280, box.clientWidth || 480), H = 220;
@@ -1501,7 +1601,7 @@ function renderTrendChart(boxId, selId) {
   s("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: "axisline" }, svg);
   if (isNum(base)) {
     s("line", { x1: m.l, x2: W - m.r, y1: y(base), y2: y(base), stroke: "var(--ink-2)", "stroke-width": 1, "shape-rendering": "crispEdges" }, svg);
-    text(svg, W - m.r, y(base) - 5, `baseline ${fmt(base, key)}`, { "text-anchor": "end", fill: "var(--ink-2)" });
+    text(svg, W - m.r, y(base) - 5, `A ${fmt(base, key)}`, { "text-anchor": "end", fill: "var(--ink-2)" });
   }
   const step = Math.max(1, Math.ceil(pts.length / Math.max(1, Math.floor((W - m.l - m.r) / 70))));
   pts.forEach((p, k) => { if (k % step === 0 || k === pts.length - 1) text(svg, x(k), H - m.b + 16, p.name.length > 12 ? p.name.slice(0, 11) + "…" : p.name, { "text-anchor": "middle" }); });
@@ -1517,7 +1617,7 @@ function renderTrendChart(boxId, selId) {
     const k = nearest(evt), p = pts[k];
     cross.setAttribute("x1", x(k)); cross.setAttribute("x2", x(k)); cross.setAttribute("visibility", "visible");
     const rows = [{ label: "value", value: fmt(p.v, key) }];
-    if (isNum(base)) rows.push({ label: "vs baseline", value: `${fmt(p.v - base, key, true)} ${fmtPct(p.v - base, base)}` });
+    if (isNum(base)) rows.push({ label: "vs A", value: `${fmt(p.v - base, key, true)} ${fmtPct(p.v - base, base)}` });
     rows.push({ label: "qseek", value: (p.env.qseek_commit || "?").slice(0, 8) + (p.env.qseek_dirty ? "+" : "") });
     rows.push({ label: "created", value: shortTime(p.created) });
     showTip(evt, `${p.name} · click for B, shift-click for A`, rows);
@@ -1525,7 +1625,7 @@ function renderTrendChart(boxId, selId) {
   hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
   hit.addEventListener("click", (evt) => { const p = pts[nearest(evt)]; if (evt.shiftKey) state.a = p.name; else state.b = p.name; hideTip(); loadSelection(); });
   box.append(svg);
-  $("trend-sub").textContent = `${pts.length} run${pts.length > 1 ? "s" : ""} in order of creation. "Against the baseline" pairs each run with the baseline; for run metrics the hairline is the baseline. Click a run for B, shift-click for A.`;
+  $("trend-sub").textContent = `${pts.length} run${pts.length > 1 ? "s" : ""} in order of creation. "Against A" pairs each run with A; for run metrics the hairline is A. Click a run for B, shift-click for A.`;
 }
 
 // ---------------------------------------------------------------- reference catalog
@@ -1666,20 +1766,20 @@ function renderRuns() {
   const box = $("runs");
   box.replaceChildren();
   const mp = state.overview.settings?.metrics?.min_picks ?? 8;
-  $("runs-sub").textContent = `All runs of the example, each paired with the baseline. Lost and new count detections with at least ${mp} picks. Pick A and B in the last column.`;
+  $("runs-sub").textContent = `All runs of the example, each paired with A (${state.a || "–"}). Lost and new count detections with at least ${mp} picks. Pick A and B in the last column.`;
   const runs = [...state.overview.runs].sort((x, y) => {
-    if (x.name === "baseline") return -1;
-    if (y.name === "baseline") return 1;
+    if (x.name === state.a) return -1;
+    if (y.name === state.a) return 1;
     return (y.metrics?.created || "9").localeCompare(x.metrics?.created || "9");
   });
-  const heads = ["run", "state", "created", "qseek", "overrides", "events", `≥ ${mp} picks`, "lost", "new", "shift m", "nn m", "RMS s", "ref.", "time s", "gates", "pick"];
+  const heads = ["run", "state", "created", "qseek", "overrides", "events", `≥ ${mp} picks`, "lost", "new", "shift m", "nn m", "RMS s", "sem. max", "ref.", "time s", "gates", "pick"];
   const body = el("tbody");
   for (const r of runs) {
     const m = r.metrics || {};
     const env = m.environment || {};
-    const vb = r.vs_baseline;
+    const vb = r.vs_against;
     const a = vb?.association;
-    let gates = el("span", { class: "muted" }, r.name === "baseline" ? "–" : "");
+    let gates = el("span", { class: "muted" }, r.name === state.a ? "–" : "");
     if (vb) {
       gates = el("span", { class: "controls" },
         a?.identical ? statusEl("ok", "identical") : null,
@@ -1697,7 +1797,7 @@ function renderRuns() {
     const cls = [r.name === state.a ? "sel-a" : "", r.name === state.b ? "sel-b" : "", r.metrics ? "" : "dim"].join(" ");
     const matched = get(m, "reference.n_matched");
     body.append(el("tr", { class: cls },
-      el("td", { class: "mono" }, r.name, r.name === "baseline" && m.run ? el("span", { class: "muted" }, ` ← ${m.run}`) : null),
+      el("td", { class: "mono" }, r.name),
       el("td", {}, stateCell),
       el("td", { class: "num ink2", title: m.created || "" }, m.created ? ago(m.created) : "–"),
       el("td", { class: "num" }, (env.qseek_commit || "–").slice(0, 8), env.qseek_dirty ? el("span", { class: "muted" }, "+dirty") : null),
@@ -1709,12 +1809,13 @@ function renderRuns() {
       el("td", { class: "r num" }, a ? fmt(a.shift_horizontal_median_m, "_m") : "–"),
       el("td", { class: "r num" }, fmt(get(m, "detections.nn_distance_median_m"), "_m")),
       el("td", { class: "r num" }, fmt(get(m, "detections.rms_median_s"), "rms")),
+      el("td", { class: "r num" }, fmt(get(m, "detections.semblance_max"), "semblance")),
       el("td", { class: "r num" }, isNum(matched) ? `${matched}/${get(m, "reference.n_events")}` : "–"),
       el("td", { class: "r num" }, fmt(get(m, "runtime.search_time_s"), "x_s")),
       el("td", {}, gates),
       el("td", {}, pick)));
   }
-  box.append(el("table", {}, el("thead", {}, el("tr", {}, ...heads.map((h, k) => el("th", { class: k >= 5 && k <= 13 ? "r" : "" }, h)))), body));
+  box.append(el("table", {}, el("thead", {}, el("tr", {}, ...heads.map((h, k) => el("th", { class: k >= 5 && k <= 14 ? "r" : "" }, h)))), body));
 }
 
 
