@@ -6,7 +6,7 @@
   },
   "data_provider": {
     "provider": "SDSArchive",
-    "archive": "sds/"
+    "archives": ["sds/"]
   },
   "octree": {
     "location": {
