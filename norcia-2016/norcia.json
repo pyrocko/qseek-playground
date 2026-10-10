@@ -1,0 +1,56 @@
+{
+  "stations": {
+    "station_xmls": [
+      "metadata/"
+    ]
+  },
+  "data_provider": {
+    "provider": "SDSArchive",
+    "archives": ["sds/"]
+  },
+  "octree": {
+    "location": {
+      "lat": 42.82,
+      "lon": 13.17
+    },
+    "root_node_size": 2000.0,
+    "n_levels": 4,
+    "east_bounds": [
+      -20000.0,
+      20000.0
+    ],
+    "north_bounds": [
+      -32000.0,
+      32000.0
+    ],
+    "depth_bounds": [
+      -2000.0,
+      22000.0
+    ]
+  },
+  "image_function": {
+    "image": "SeisBench",
+    "model": "PhaseNet",
+    "pretrained": "instance",
+    "phase_map": {
+      "P": "fm:P",
+      "S": "fm:S"
+    }
+  },
+  "ray_tracers": [
+    {
+      "tracer": "FastMarching",
+      "velocity_model": {
+        "filename": "norcia.nd"
+      },
+      "phases": [
+        "fm:P",
+        "fm:S"
+      ]
+    }
+  ],
+  "trigger": {
+    "trigger": "MADTrigger",
+    "mad_factor": 10.0
+  }
+}
