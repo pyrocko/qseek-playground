@@ -48,13 +48,13 @@ All stations record broadband `BH` channels at 50 Hz. The distances are from the
 | Group | Stations | Distance | Azimuth |
 | --- | --- | --- | --- |
 | Local, AVO network `AV` | `SPBG`, `SPCP`, `SPCN`, `SPCL`, `SPCG`, `SPWE`, `SPU`, `SPBL`, `SPNN`, `STLK` | 7–32 km | all around |
-| Regional, Alaska network `AK` | `M20K`, `SSN`, `CAPN`, `SKN`, `FIRE`, `N19K` | 79–131 km | 325°, 77°, 134°, 27°, 98°, 247° |
+| Regional, Alaska network `AK` | `M20K`, `SSN`, `CAPN`, `SKN`, `FIRE`, `N19K` | 79–131 km | 325°, 77°, 134°, 27°, 98°, 246° |
 | Regional cluster, Redoubt Volcano network `AV` | `RDT`, `RDDF`, `RDJH`, `RED` | 81–102 km | 185–200° |
 
 - The local network is denser on the southeast flank: `SPCP` and `SPCN` are 4.9 km apart, `SPBG` and `SPCL` 7.3 km.
-- The four Redoubt stations lie within 26 km of each other, `RDDF` and `RDJH` only 6.4 km apart. They put four stations into one direction of the stack.
+- The four Redoubt stations lie within 27 km of each other, `RDDF` and `RDJH` only 6.4 km apart. They put four stations into one direction of the stack.
 - The example has no co-located sensors: in December 2024, no AVO station near Mount Spurr shares its site with a second sensor under another location code. The closest pair, `AV.N20K` and `AV.SPCN`, is 2.9 km apart, but `AV.N20K` has no waveforms at EarthScope for these days, nor have `AK.O20K` and `AK.M19K`; the example leaves the three out.
-- The largest azimuthal gap of the regional stations is 78°, between `N19K` (247°) and `M20K` (325°).
+- The largest azimuthal gap of the regional stations is 79°, between `N19K` (246°) and `M20K` (325°).
 - `AK.N19K` recorded 73% of the three days; `AV.SPBG` has short gaps. Qseek logs a warning per channel for each 5-minute batch without data.
 
 ## Setup
@@ -69,7 +69,7 @@ All stations record broadband `BH` channels at 50 Hz. The distances are from the
 
 The search configuration is `spurr.json`. `just search` copies it to `runs/<run>.json`, applies the `--set` overrides and runs the search from this directory.
 
-Depths in the configuration, the velocity model and the detections are relative to sea level, as in the USGS catalog. The summit is 3374 m above sea level, and the search volume reaches 4 km above sea level to include the shallowest catalog events. The 1D model has no topography: 99 detections, 43 of them with at least 8 picks, locate above the summit.
+Depths in the configuration, the velocity model and the detections are relative to sea level, as in the USGS catalog. The summit is 3374 m above sea level, and the search volume reaches 4 km above sea level to include the shallowest catalog events. The 1D model has no topography: 103 detections, 44 of them with at least 8 picks, locate above the summit.
 
 ## Velocity model
 
@@ -86,7 +86,7 @@ Vs follows from the Vp/Vs ratios of the AVO model, the density from Vp with the 
 
 ## Reference catalog
 
-`reference/usgs-catalog.txt` holds the [USGS ComCat](https://earthquake.usgs.gov/fdsnws/event/1/) events of 27–29 December 2024 within 12 km of 61.30°N, 152.27°W and above 16 km depth: 234 earthquakes, 220 located by AVO and 14 by the Alaska Earthquake Center, from ML −1.1 to ML 3.2. `just catalog spurr-2024` downloads it again with the query in `example.toml`. The depth limit leaves out the intermediate-depth earthquakes of the subducting slab, about 100 km below the volcano.
+`reference/usgs-catalog.txt` holds the [USGS ComCat](https://earthquake.usgs.gov/fdsnws/event/1/) events of 27–29 December 2024 within 12 km of 61.30°N, 152.27°W and shallower than 16 km below sea level: 234 earthquakes, 220 located by AVO and 14 by the Alaska Earthquake Center, from ML −1.1 to ML 3.2. `just catalog spurr-2024` downloads it again with the query in `example.toml`. The depth limit leaves out the intermediate-depth earthquakes of the subducting slab, about 100 km below the volcano.
 
 A detection matches a catalog event when their origin times differ by at most 3 s; each catalog event matches at most one detection. The metrics compare the matched pairs: epicenter offset, depth offset (positive when Qseek is deeper) and origin time offset. The catalog lists only the larger events, so detections without a match are not false detections.
 
