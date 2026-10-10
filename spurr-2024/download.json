@@ -1,0 +1,35 @@
+{
+  "writer": {"sds_archive": "sds"},
+  "clients": [{"url": "https://service.earthscope.org/"}],
+  "metadata_path": "metadata",
+  "time_range": ["2024-12-27", "2024-12-30"],
+  "station_selection": {
+    "selection": "StationSelection",
+    "stations": [
+      "AV.SPCP",
+      "AV.SPBG",
+      "AV.SPCN",
+      "AV.SPCG",
+      "AV.SPCL",
+      "AV.SPWE",
+      "AV.SPU",
+      "AV.SPBL",
+      "AV.SPNN",
+      "AV.STLK",
+      "AK.M20K",
+      "AK.SKN",
+      "AK.SSN",
+      "AK.CAPN",
+      "AK.FIRE",
+      "AV.RDT",
+      "AV.RDDF",
+      "AV.RDJH",
+      "AV.RED",
+      "AK.N19K"
+    ]
+  },
+  "channel_priority": ["BH[ZNE12]", "HH[ZNE12]"],
+  "min_channels_per_station": 3,
+  "min_sampling_rate": 40.0,
+  "max_sampling_rate": 100.0
+}

@@ -103,6 +103,7 @@ Gated run metrics in `just compare`: picks per event, residual RMS, search time,
 | --- | --- | --- | --- |
 | `campi-flegrei` | 20 May 2024, 18 INGV stations, about 1 GB | INGV catalog, 45 events | 732 detections, 521 with ≥ 8 picks, 153 m nearest neighbor; 45/45 catalog events matched; about 90 s |
 | `campi-flegrei-2025-02` | 12–22 February 2025, 19 INGV stations, about 10 GB | INGV catalog, 211 events | 6379 detections, 3750 with ≥ 8 picks, 69 m nearest neighbor; 209/211 catalog events matched; about 14 min |
+| `spurr-2024` | 27–29 December 2024, 10 local AVO and 10 regional AK and AV stations (7–131 km), about 830 MB | USGS ComCat, 234 events | 1758 detections, 1046 with ≥ 8 picks, 296 m nearest neighbor; 228/234 catalog events matched; about 2 min |
 
 ### Add an example
 
