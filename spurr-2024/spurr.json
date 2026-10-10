@@ -1,0 +1,56 @@
+{
+  "stations": {
+    "station_xmls": [
+      "metadata/"
+    ]
+  },
+  "data_provider": {
+    "provider": "SDSArchive",
+    "archives": ["sds/"]
+  },
+  "octree": {
+    "location": {
+      "lat": 61.30,
+      "lon": -152.27
+    },
+    "root_node_size": 2000.0,
+    "n_levels": 4,
+    "east_bounds": [
+      -12000.0,
+      12000.0
+    ],
+    "north_bounds": [
+      -12000.0,
+      12000.0
+    ],
+    "depth_bounds": [
+      -4000.0,
+      16000.0
+    ]
+  },
+  "image_function": {
+    "image": "SeisBench",
+    "model": "PhaseNet",
+    "pretrained": "volpick",
+    "phase_map": {
+      "P": "fm:P",
+      "S": "fm:S"
+    }
+  },
+  "ray_tracers": [
+    {
+      "tracer": "FastMarching",
+      "velocity_model": {
+        "filename": "spurr.nd"
+      },
+      "phases": [
+        "fm:P",
+        "fm:S"
+      ]
+    }
+  ],
+  "trigger": {
+    "trigger": "MADTrigger",
+    "mad_factor": 10.0
+  }
+}
