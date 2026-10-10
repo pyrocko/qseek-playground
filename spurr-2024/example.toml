@@ -1,0 +1,25 @@
+# Settings of the playground scripts for this example, see ../AGENTS.md.
+
+# Search configuration used by `just search`, relative to this directory
+config = "spurr.json"
+
+[reference]
+# USGS ComCat (AVO and AEC locations), all events within 12 km of the swarm and
+# above 16 km depth below sea level, 27–29 December 2024
+catalog = "reference/usgs-catalog.txt"
+url = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=text&starttime=2024-12-27T00:00:00&endtime=2024-12-30T00:00:00&latitude=61.30&longitude=-152.27&maxradiuskm=12&maxdepth=16&orderby=time-asc"
+# A detection matches a catalog event within this origin time difference, in seconds
+max_time_difference = 3.0
+# No magnitude_column: Qseek has no local magnitude model for Alaska, so this
+# example computes no magnitudes
+
+[metrics]
+# Detections with at least this many phase picks count as well constrained
+min_picks = 8
+# The dashboard pairs the detections of two runs within this origin time difference, in s
+pair_max_time_difference = 1.0
+
+# Override the regression tolerances of `just compare` for this example, e.g.
+# [tolerances."reference.epicenter_offset_median_m"]
+# tolerance = 25.0
+# rel_tolerance = 0.1
