@@ -92,11 +92,13 @@ A detection matches a catalog event when their origin times differ by at most 3 
 
 ## Compare station weightings
 
-By default, Qseek gives the 4 closest stations full weight and tapers the others over 166 km, twice the mean interstation distance of this network. Change the weighting of a run with `--set` and compare it with the run `dev`:
+The default [station weights](https://pyrocko.github.io/qseek/configuration/station-weights/), `StationDensityWeights`, give the closest stations of a node full weight until they add up to 3 independent stations. The ten local stations count as 4.6 independent stations, so the plateau of a node 4 km below the volcano reaches 25 km. The taper cap keeps the regional stations beyond 79 km at weights of 0.09 and less. The `DistanceWeights` of earlier Qseek versions give the 4 closest stations full weight and taper over 166 km, twice the mean interstation distance of this network: the regional stations keep weights of 0.25 to 0.65, although they rarely record the small events of the swarm. Compare them with the run `dev`:
 
-```sh title="Compare a run with another weighting with the run dev"
-just search spurr-2024 waterlevel --set distance_weights.waterlevel=0.2
-just compare spurr-2024 waterlevel dev
+```sh title="Compare the distance weights with the run dev"
+just search spurr-2024 distance --set 'station_weights.weights="DistanceWeights"'
+just compare spurr-2024 distance dev
 ```
+
+With the distance weights, the search finds 1758 instead of 2457 detections, 1046 instead of 1140 with at least 8 picks, and 228 instead of 229 catalog events. It loses 119 detections with at least 8 picks and adds 28; the paired detections move by 61 m (median).
 
 The comparison pairs the detections of both runs by origin time, within 1 s, and reports the detections lost and added, how far the paired detections moved, and how their picks and residuals changed. `just dashboard` shows the comparison with maps and histograms.
