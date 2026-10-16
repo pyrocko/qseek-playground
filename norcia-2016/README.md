@@ -110,13 +110,13 @@ The depth offset to the INGV catalog comes from the catalog. The relocated catal
 
 ## Compare station weightings
 
-At the Qseek commit of the run above (`3552b0c`), the configuration key of the station weighting is `distance_weights`; newer versions name it `station_weights`. By default, Qseek gives the 4 closest stations of a node full weight and tapers the others over 63 km, twice the mean interstation distance of this network. At the center of the search volume, 5 km deep, the 12 stations at Amatrice keep weights of 0.88–0.92, a quarter of the summed weight of all stations; at the northern end of the sequence, 43.05°N, they keep 0.33–0.38. Change the weighting of a run with `--set` and compare it with the run `dev`:
+The default [station weights](https://pyrocko.github.io/qseek/configuration/station-weights/), `StationDensityWeights`, count how many independent stations each station is worth: the 12 stations of the Amatrice cluster count as 1.04 independent stations together, 0.06 to 0.14 each, and all 49 stations as 30.9. The cluster therefore does not dominate the nodes near Amatrice. The `DistanceWeights` of earlier Qseek versions give the 4 closest stations full weight and taper over 63 km, twice the mean interstation distance of this network: at the center of the search volume, 5 km deep, the 12 stations at Amatrice keep weights of 0.88–0.92, a quarter of the summed weight of all stations. Compare them with the run `dev`:
 
-```sh title="Compare a run with a shorter distance taper with the run dev"
-just search norcia-2016 taper20 --set distance_weights.distance_taper=20000
-just compare norcia-2016 taper20 dev
+```sh title="Compare the distance weights with the run dev"
+just search norcia-2016 distance --set 'station_weights.weights="DistanceWeights"'
+just compare norcia-2016 distance dev
 ```
 
 The comparison pairs the detections of both runs by origin time, within 1 s, and reports the detections lost and added, how far the paired detections moved, and how their picks and residuals changed. `just dashboard` shows the comparison with maps and histograms.
 
-With a 20 km taper, the cluster keeps weights of 0.29–0.45 at the center and less than 0.01 at the northern end. That run gives 4333 detections and finds 1025 of the 1071 catalog events. It pairs 3625 detections with `dev`, moves them by 165 m horizontally and 269 m up (medians), and loses 92 and adds 432 detections with at least 20 picks; `just compare` flags the lost detections. The cluster stops recording on 17 November, so the detections of 15 and 16 November show its effect: on these days, the cluster stations give a median of 13 and 12 picks per detection in `dev`.
+With the distance weights, the search finds 3732 instead of 4279 detections, 3602 instead of 3874 with at least 20 picks, and 1013 instead of 1026 catalog events. It loses 355 detections with at least 20 picks and adds 80; the paired detections move by 141 m horizontally and 282 m deeper (medians). The cluster stops recording on 17 November, so the detections of 15 and 16 November show its effect.
