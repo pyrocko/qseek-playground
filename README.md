@@ -77,7 +77,7 @@ just hypodd-compare campi-flegrei dev-hypodd-cc ssst dev-hypodd
 
 `just hypodd` compares the HypoDD locations with those of the source run. `just hypodd-compare` adds other runs, on the events common to all of them:
 
-- the double-difference residuals of every run's locations, evaluated by hypoDD on the same catalog differential times `dt.ct` without moving the events, and on the cross-correlation times `dt.cc` if the HypoDD run has them;
+- the double-difference residuals of every run's locations, evaluated by hypoDD on the same catalog differential times `dt.ct` without moving the events, and on the cross-correlation times `dt.cc` if the HypoDD run has them. A residual too large for hypoDD's output format, above 100 s or below −10 s, counts as 100 s and is reported as overflowing;
 - the nearest-neighbor distance and the depth distribution;
 - the epicenter and depth offsets to the reference catalog;
 - the shift to the HypoDD locations, absolute and after removing the median shift.
