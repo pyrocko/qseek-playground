@@ -75,9 +75,9 @@ clear example:
     [[ -f "$1/example.toml" ]] || { echo "no example $1" >&2; exit 1; }
     shopt -s nullglob dotglob; runs=("$1"/runs/*); (( ${#runs[@]} )) && rm -rf -- "${runs[@]}"; echo "removed ${#runs[@]} entries from $1/runs"
 
-# Serve the dashboard to look at and compare the runs of the examples
+# Serve the dashboard to look at and compare the runs of the examples; the port as 3312 or port=3312
 dashboard port="2214":
-    {{ playground }} dashboard --port "$1"
+    {{ playground }} dashboard --port "${1#port=}"
 
 # Relocate the detections of a run with HypoDD into <run>-hypodd; options: --cc, --set key.path=value, --force
 hypodd example="campi-flegrei" from="dev" *options:

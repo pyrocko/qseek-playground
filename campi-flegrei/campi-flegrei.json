@@ -49,6 +49,10 @@
       ]
     }
   ],
+  "trigger": {
+    "trigger": "MADTrigger",
+    "mad_factor": 10.0
+  },
   "magnitudes": [
     {
       "magnitude": "LocalMagnitude",
