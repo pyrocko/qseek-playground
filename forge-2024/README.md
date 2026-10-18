@@ -32,7 +32,7 @@ just snuffler forge-2024 dev
 | `UU.FOR2` | `HH[ZNE]` | 200 Hz | 1760 m | 2.1 km E, 1.0 km S |
 | `UU.FSB1` | `DN[Z12]` | 500 Hz | 1697 m | 0.4 km E, 2.1 km S |
 | `UU.FSB3` | `DN[Z12]` | 500 Hz | 1701 m | 1.4 km E, 1.0 km N |
-| `6K.CS01` | `GN[Z12]` | 1000 Hz | 1627 m | 1.0 km W, 1.4 km S |
+| `6K.CS01` | `GN[Z12]` | 1000 Hz | 1627 m | 1.0 km W, 1.5 km S |
 
 `download.json` selects these five stations. The original configuration also listed `UU.FORK2`, `UU.FORK3`, `UU.FORB` and `UU.FSB2`; EarthScope returns no waveforms of the first three for these days, and `UU.FSB2` was blacklisted. With five stations, the search requires picks at three of them (`min_stations`).
 

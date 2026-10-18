@@ -112,7 +112,7 @@ Gated run metrics in `just compare`: picks per event, residual RMS, search time,
 Create a directory with:
 
 - `README.md` for users: what the example shows, how to run it, what you should see.
-- `example.toml`: `config`, `[reference]` with `catalog` (FDSN text format), `url`, `max_time_difference` and `magnitude_column`, and `[metrics]` with `min_picks` and `pair_max_time_difference`.
+- `example.toml`: `config`, `[reference]` (optional: `forge-2024` has none and is compared run against run) with `catalog` (FDSN text format), `url`, `max_time_difference` and `magnitude_column`, and `[metrics]` with `min_picks` and `pair_max_time_difference`.
 - `download.json` for FDSN Rush, writing `sds/` and `metadata/`. Select the stations with a `StationSelection` of explicit `NET.STA` codes, so the station set does not change when the data center adds stations.
 - The search configuration and velocity models, with paths relative to the example directory.
 - `reference/` with the catalog from `just catalog <example>`.
