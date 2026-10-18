@@ -105,13 +105,14 @@ Gated run metrics in `just compare`: picks per event, residual RMS, search time,
 | `campi-flegrei-2025-02` | 12–22 February 2025, 19 INGV stations, about 10 GB | INGV catalog, 211 events | 6379 detections, 3750 with ≥ 8 picks, 69 m nearest neighbor; 209/211 catalog events matched; about 14 min |
 | `spurr-2024` | 27–29 December 2024, 10 local AVO and 10 regional AK and AV stations (7–131 km), about 830 MB | USGS ComCat, 234 events | 1758 detections, 1046 with ≥ 8 picks, 296 m nearest neighbor; 228/234 catalog events matched; about 2 min |
 | `norcia-2016` | 15–17 November 2016, 49 stations of the networks `IV`, `8P`, `3A`, `XO`, 12 of them in a cluster at Amatrice, about 4.7 GB | INGV catalog, 1071 events | 3732 detections, 3602 with ≥ 20 picks, 405 m nearest neighbor; 1013/1071 catalog events matched; about 7 min |
+| `forge-2024` | 4–6 April 2024, 5 stations (UU, 6K), 2.3 GB | None: compare runs | 3134 detections, 1641 with ≥ 6 picks, travel times in a 3D velocity model (`FastMarching3D`); about 80 s |
 
 ### Add an example
 
 Create a directory with:
 
 - `README.md` for users: what the example shows, how to run it, what you should see.
-- `example.toml`: `config`, `[reference]` with `catalog` (FDSN text format), `url`, `max_time_difference` and `magnitude_column`, and `[metrics]` with `min_picks` and `pair_max_time_difference`.
+- `example.toml`: `config`, `[reference]` (optional: `forge-2024` has none and is compared run against run) with `catalog` (FDSN text format), `url`, `max_time_difference` and `magnitude_column`, and `[metrics]` with `min_picks` and `pair_max_time_difference`.
 - `download.json` for FDSN Rush, writing `sds/` and `metadata/`. Select the stations with a `StationSelection` of explicit `NET.STA` codes, so the station set does not change when the data center adds stations.
 - The search configuration and velocity models, with paths relative to the example directory.
 - `reference/` with the catalog from `just catalog <example>`.

@@ -1,0 +1,13 @@
+# Settings of the playground scripts for this example, see ../AGENTS.md.
+
+# Search configuration used by `just search`, relative to this directory
+config = "forge.json"
+
+# No [reference]: the example has no reference catalog. Compare runs with each
+# other, see `just compare`.
+
+[metrics]
+# Detections with at least this many phase picks count as well constrained
+min_picks = 6
+# The dashboard pairs the detections of two runs within this origin time difference, in s
+pair_max_time_difference = 1.0

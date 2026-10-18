@@ -1,0 +1,22 @@
+{
+  "writer": {"sds_archive": "sds"},
+  "clients": [{"url": "https://service.earthscope.org/"}],
+  "metadata_path": "metadata",
+  "time_range": ["2024-04-04", "2024-04-07"],
+  "station_selections": [
+    {
+      "selection": "StationSelection",
+      "stations": [
+        "UU.FORK",
+        "UU.FSB1",
+        "UU.FSB3",
+        "UU.FOR2",
+        "6K.CS01"
+      ]
+    }
+  ],
+  "channel_priority": ["HH[ZNE12]", "EH[ZNE12]", "HN[ZNE12]", "GN[ZNE12]"],
+  "min_channels_per_station": 1,
+  "min_sampling_rate": 100.0,
+  "max_sampling_rate": 1000.0
+}
