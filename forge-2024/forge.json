@@ -1,0 +1,103 @@
+{
+  "stations": {
+    "station_xmls": [
+      "metadata/"
+    ]
+  },
+  "data_provider": {
+    "provider": "SDSArchive",
+    "archives": ["sds/"]
+  },
+  "pre_processing": [
+    {
+      "process": "downsample",
+      "sampling_frequency": 200.0
+    },
+    {
+      "process": "bandpass",
+      "bandpass": [
+        20.0,
+        50.0
+      ]
+    }
+  ],
+  "octree": {
+    "location": {
+      "lat": 38.50402147,
+      "lon": -112.8963897,
+      "elevation": 1650.0
+    },
+    "root_node_size": 400.0,
+    "n_levels": 5,
+    "east_bounds": [
+      -1200.0,
+      3600.0
+    ],
+    "north_bounds": [
+      -2100.0,
+      1500.0
+    ],
+    "depth_bounds": [
+      300.0,
+      3100.0
+    ]
+  },
+  "image_function": {
+    "image": "SeisBench",
+    "picker": {
+      "threshold_p": 0.2,
+      "threshold_s": 0.2
+    },
+    "model": "PhaseNet",
+    "pretrained": "original",
+    "window_overlap_samples": 1500,
+    "sampling_rate": 200.0,
+    "phase_map": {
+      "P": "fm3d:P",
+      "S": "fm3d:S"
+    }
+  },
+  "ray_tracers": [
+    {
+      "tracer": "FastMarching3D",
+      "phase": "fm3d:P",
+      "interpolation_method": "linear",
+      "velocity_model": {
+        "model": "NonLinLocVelocityModel",
+        "header_file": "models/FORGE_3Dv3_5_large.P.mod.hdr",
+        "grid_spacing": "input",
+        "interpolation": "linear",
+        "reference_location": {
+          "lat": 38.50402147,
+          "lon": -112.8963897,
+          "elevation": 1650.0
+        }
+      }
+    },
+    {
+      "tracer": "FastMarching3D",
+      "phase": "fm3d:S",
+      "interpolation_method": "linear",
+      "velocity_model": {
+        "model": "NonLinLocVelocityModel",
+        "header_file": "models/FORGE_3Dv3_5_large.S.mod.hdr",
+        "grid_spacing": "input",
+        "interpolation": "linear",
+        "reference_location": {
+          "lat": 38.50402147,
+          "lon": -112.8963897,
+          "elevation": 1650.0
+        }
+      }
+    }
+  ],
+  "station_weights": {
+    "weights": "DistanceWeights",
+    "required_closest_stations": 3,
+    "waterlevel": 0.1
+  },
+  "trigger": {
+    "trigger": "ThresholdTrigger",
+    "threshold": 0.3
+  }
+}
