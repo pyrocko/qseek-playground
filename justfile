@@ -16,7 +16,7 @@ default:
 # Install the qseek checkout and FDSN Rush into its .venv; run again after changing C extensions
 setup:
     uv sync --project {{ quote(qseek_dir) }} --inexact --reinstall-package qseek
-    uv pip install --python {{ quote(qseek_dir / ".venv") }} "fdsn-rush>=0.2"
+    uv pip install --python {{ quote(qseek_dir / ".venv") }} "fdsn-rush>=0.3"
     {{ uv_run }} qseek --version
     {{ uv_run }} fdsn-rush --version
 

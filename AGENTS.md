@@ -14,7 +14,7 @@ The Qseek docs describe the playground on the page "Playground" under "Get start
 - Everything that imports Qseek runs with the venv of the Qseek checkout: `uv run --project ../qseek --no-sync`. `QSEEK_DIR` points to another checkout.
 - Qseek is an editable install, so Python changes in `../qseek` take effect in the next run. After changes to the C extensions in `src/qseek/ext/`, run `just setup` to rebuild them.
 - `just setup` runs `uv sync --inexact`, so plugins installed into `../qseek/.venv` stay installed.
-- FDSN Rush runs from the same venv. `just setup` installs `fdsn-rush>=0.2` into `../qseek/.venv`; an editable checkout installed there stays. The configuration format of 0.2 is not compatible with older releases: `station_selection` is an object with `selection` (`StationSelection`, `GeographicSelection` or `RadiusSelection`), not a list of codes, and unknown keys are refused. `fdsn-rush check download.json` validates a configuration without contacting the server.
+- FDSN Rush runs from the same venv. `just setup` installs `fdsn-rush>=0.3` into `../qseek/.venv`; an editable checkout installed there stays. The configuration format is not compatible with older releases: `station_selections` is a list of selections, each an object with `selection` (`StationSelection`, `GeographicSelection` or `RadiusSelection`), not a list of codes, and unknown keys are refused. The list came with FDSN Rush 0.3; 0.2 reads one `station_selection` object. `fdsn-rush check download.json` validates a configuration without contacting the server.
 - `scripts/playground.py` uses only the standard library. It reads the documented outputs of a run, `csv/detections.csv` and `qseek.log`, not Qseek internals, so the metrics stay comparable across refactors.
 
 ## The loop
