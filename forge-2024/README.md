@@ -53,6 +53,8 @@ Depths in the detections are relative to sea level. The origin of the search vol
 
 ## Velocity model
 
+The models are the composite 3D seismic velocity model of the Utah FORGE site: Finger, C., Niemz, P., Ermert, L., & Lanza, F. (2024). *Utah FORGE: Composite 3D Seismic Velocity Model* [Data set]. GDR. University of Utah Seismograph Stations. <https://doi.org/10.15121/2305384>
+
 `models/` holds the P- and S-wave velocity models of the site as NonLinLoc grids (`.hdr` header and `.buf` data): 111 × 75 × 67 nodes with a spacing of 50 m, 5.55 km east–west, 3.75 km north–south and 3.35 km deep, starting 200 m above the origin. The grids store slowness times length (`SLOW_LEN`). The `reference_location` in `forge.json` places the grids, because their coordinates are relative.
 
 The search volume lies inside the grid of the models, so Qseek needs no travel times outside of it.
