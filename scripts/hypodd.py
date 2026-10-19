@@ -60,6 +60,11 @@ EVALUATION_DIR = "hypodd-evaluation"
 HYPODD_TIMEOUT = 600.0
 # Damping of the evaluation run: the locations do not move in the single iteration
 EVALUATION_DAMPING = 1e6
+# hypoDD.res writes the residual in ms with the Fortran format f12.6, which holds
+# -9999.999999 to 99999.999999 and fills the field with asterisks beyond. Such a
+# residual counts as RES_OVERFLOW_MS: it raises the median and percentiles of a run
+# with badly located events instead of disappearing from them.
+RES_OVERFLOW_MS = 1e5
 
 RELOC_COLUMNS = [
     "id",
@@ -195,8 +200,22 @@ def hypodd_summary(directory: Path) -> dict[str, Any]:
     return summary
 
 
+def fortran_float(value: str, overflow: float) -> float:
+    """Parse a field of hypoDD's fixed-width output.
+
+    Fortran fills a field with asterisks when the value does not fit its format;
+    such a field is `overflow`.
+    """
+    return overflow if value.startswith("*") else float(value)
+
+
 def read_reloc(file: Path) -> dict[int, dict[str, float]]:
-    """Read hypoDD.reloc, keyed by event ID."""
+    """Read hypoDD.reloc, keyed by event ID.
+
+    A field that overflowed its format is infinite, e.g. a location error `ex`,
+    `ey`, `ez` of 1000 km or more (f8.1, in m) or a residual RMS `rcc`, `rct` of
+    100 s or more (f6.3).
+    """
     events = {}
     if not file.exists():
         return events
@@ -205,7 +224,8 @@ def read_reloc(file: Path) -> dict[int, dict[str, float]]:
         if len(values) != len(RELOC_COLUMNS):
             continue
         row = {
-            key: float(value) for key, value in zip(RELOC_COLUMNS, values, strict=True)
+            key: fortran_float(value, math.inf)
+            for key, value in zip(RELOC_COLUMNS, values, strict=True)
         }
         events[int(row["id"])] = row
     return events
@@ -527,12 +547,16 @@ def evaluate(
             values = line.split()
             if len(values) < 9 or values[0] == "STA":
                 continue
-            residuals[data_types[values[4]]].append(float(values[6]))
+            residuals[data_types[values[4]]].append(
+                fortran_float(values[6], RES_OVERFLOW_MS)
+            )
 
     def stats(values: list[float]) -> dict[str, Any]:
         abs_values = [abs(v) for v in values]
         return {
             "n": len(values),
+            # only an overflowing residual reaches RES_OVERFLOW_MS
+            "n_overflow": sum(1 for v in abs_values if v >= RES_OVERFLOW_MS),
             "rms_ms": rounded(math.sqrt(sum(v * v for v in values) / len(values)), 1)
             if values
             else None,
@@ -669,9 +693,11 @@ def compare(args: argparse.Namespace) -> int:
         "dd_residuals.all.rms_ms",
         "dd_residuals.all.abs_median_ms",
         "dd_residuals.all.abs_p90_ms",
+        "dd_residuals.all.n_overflow",
         "dd_residuals.P.abs_median_ms",
         "dd_residuals.S.abs_median_ms",
         "dd_residuals.cc.n",
+        "dd_residuals.cc.n_overflow",
         "dd_residuals.cc.abs_median_ms",
         "dd_residuals.cc.abs_p90_ms",
         "dd_residuals.cc_P.abs_median_ms",
